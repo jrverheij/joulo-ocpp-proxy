@@ -1,4 +1,12 @@
-# joulo-ocpp-proxy
+# Copy of joulo-ocpp-proxy - with added fuctionality
+Added (with AI):
+- secondary reconnect
+- keepalive ping
+- message queue (max 100)
+- Memoryleak fix Websocket
+- Port validation
+
+# original:
 
 A lightweight **OCPP WebSocket proxy** that sits between your EV chargers and one or more CSMS backends. It forwards all traffic to a **primary CSMS** and optionally mirrors it to **secondary backends** — perfect for monitoring, analytics, or migrating between platforms without reconfiguring your chargers.
 
