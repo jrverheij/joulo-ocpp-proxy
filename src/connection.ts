@@ -14,11 +14,21 @@ import { OCPP_MSG_CALL, OCPP_SUBPROTOCOLS, type ParsedMessage } from "./types";
  * - Secondary connections are best-effort; failures never affect the
  *   charger or the primary link.
  */
+
+const SECONDARY_RECONNECT_DELAY_MS = 10_000;
+const SECONDARY_KEEPALIVE_INTERVAL_MS = 30_000;
+const MAX_SECONDARY_QUEUE = 100;
+
 export class ChargerConnection {
   private readonly log;
   private primary: WebSocket | null = null;
-  private secondaries: WebSocket[] = [];
+  private secondaries: (WebSocket | null)[] = [];
   private alive = true;
+
+  // Per-secondary message queues for when the secondary is reconnecting
+  private secondaryQueues: string[][] = [];
+  // Per-secondary keepalive intervals
+  private secondaryKeepalives: (ReturnType<typeof setInterval> | null)[] = [];
 
   constructor(
     private readonly charger: WebSocket,
@@ -33,10 +43,13 @@ export class ChargerConnection {
   }
 
   private setup() {
-    this.primary = this.connectUpstream(this.primaryUrl, true);
+    this.primary = this.connectUpstream(this.primaryUrl, true, -1);
 
-    for (const url of this.secondaryUrls) {
-      this.secondaries.push(this.connectUpstream(url, false));
+    for (let i = 0; i < this.secondaryUrls.length; i++) {
+      this.secondaries.push(null);
+      this.secondaryQueues.push([]);
+      this.secondaryKeepalives.push(null);
+      this.secondaries[i] = this.connectSecondary(this.secondaryUrls[i], i);
     }
 
     this.charger.on("message", (data) => {
@@ -47,12 +60,26 @@ export class ChargerConnection {
         this.primary.send(raw);
       }
 
-      for (const sec of this.secondaries) {
-        if (sec.readyState === WebSocket.OPEN) {
+      for (let i = 0; i < this.secondaryUrls.length; i++) {
+        const sec = this.secondaries[i];
+        if (sec?.readyState === WebSocket.OPEN) {
           try {
             sec.send(raw);
           } catch {
             /* best-effort */
+          }
+        } else {
+          // Queue message while secondary is reconnecting
+          const q = this.secondaryQueues[i];
+          if (q.length < MAX_SECONDARY_QUEUE) {
+            q.push(raw);
+          } else {
+            // Drop oldest to make room
+            q.shift();
+            q.push(raw);
+            this.log.warn("secondary queue full, dropping oldest message", {
+              url: this.secondaryUrls[i],
+            });
           }
         }
       }
@@ -85,8 +112,10 @@ export class ChargerConnection {
     });
   }
 
-  /** Connect to an upstream CSMS. If `isPrimary`, its responses go to the charger. */
-  private connectUpstream(baseUrl: string, isPrimary: boolean): WebSocket {
+  /** Connect to the primary upstream CSMS. Its responses go back to the charger. */
+  private connectUpstream(baseUrl: string, isPrimary: true, _idx: -1): WebSocket;
+  private connectUpstream(baseUrl: string, isPrimary: false, idx: number): WebSocket;
+  private connectUpstream(baseUrl: string, isPrimary: boolean, idx: number): WebSocket {
     const url = `${baseUrl.replace(/\/+$/, "")}/${this.chargePointId}`;
     const label = isPrimary ? "primary" : "secondary";
 
@@ -153,9 +182,99 @@ export class ChargerConnection {
     return ws;
   }
 
+  /** Connect (or reconnect) a secondary, with keepalive and auto-reconnect. */
+  private connectSecondary(baseUrl: string, idx: number): WebSocket {
+    const url = `${baseUrl.replace(/\/+$/, "")}/${this.chargePointId}`;
+
+    const headers: Record<string, string> = {};
+    if (this.authHeader) {
+      headers["Authorization"] = this.authHeader;
+    }
+
+    const ws = new WebSocket(url, this.protocol ? [this.protocol] : OCPP_SUBPROTOCOLS, {
+      headers,
+      handshakeTimeout: 10_000,
+    });
+
+    ws.on("open", () => {
+      this.log.info("secondary connected", { url });
+
+      // Flush any queued messages
+      const q = this.secondaryQueues[idx];
+      if (q.length > 0) {
+        this.log.info(`secondary flushing ${q.length} queued messages`, { url });
+        for (const msg of q) {
+          try {
+            ws.send(msg);
+          } catch {
+            /* best-effort */
+          }
+        }
+        this.secondaryQueues[idx] = [];
+      }
+
+      // Start keepalive pings so the server doesn't time us out
+      this.clearKeepalive(idx);
+      this.secondaryKeepalives[idx] = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.ping();
+        }
+      }, SECONDARY_KEEPALIVE_INTERVAL_MS);
+    });
+
+    ws.on("message", (data) => {
+      this.log.debug("secondary response (ignored)", {
+        url,
+        message: this.summarise(data.toString()),
+      });
+    });
+
+    ws.on("close", (code, reason) => {
+      this.log.warn("secondary disconnected", {
+        url,
+        code,
+        reason: reason.toString(),
+      });
+      this.clearKeepalive(idx);
+      this.scheduleSecondaryReconnect(baseUrl, idx);
+    });
+
+    ws.on("error", (err) => {
+      this.log.error("secondary error", { url, error: err.message });
+      // close event will follow and trigger reconnect
+    });
+
+    return ws;
+  }
+
+  private scheduleSecondaryReconnect(baseUrl: string, idx: number) {
+    if (!this.alive) return;
+    this.log.info("secondary reconnecting", {
+      url: `${baseUrl.replace(/\/+$/, "")}/${this.chargePointId}`,
+      delayMs: SECONDARY_RECONNECT_DELAY_MS,
+    });
+    setTimeout(() => {
+      if (!this.alive) return;
+      this.secondaries[idx] = this.connectSecondary(baseUrl, idx);
+    }, SECONDARY_RECONNECT_DELAY_MS);
+  }
+
+  private clearKeepalive(idx: number) {
+    const handle = this.secondaryKeepalives[idx];
+    if (handle !== null) {
+      clearInterval(handle);
+      this.secondaryKeepalives[idx] = null;
+    }
+  }
+
   private teardown() {
     if (!this.alive) return;
     this.alive = false;
+
+    // Clear all secondary keepalives
+    for (let i = 0; i < this.secondaryKeepalives.length; i++) {
+      this.clearKeepalive(i);
+    }
 
     const close = (ws: WebSocket | null) => {
       if (ws && ws.readyState <= WebSocket.OPEN) {

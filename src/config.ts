@@ -26,8 +26,16 @@ export function loadConfig(): Config {
     ? (level as Config["logLevel"])
     : "info";
 
+  const portRaw = process.env.PORT ?? "9000";
+  const port = parseInt(portRaw, 10);
+  if (isNaN(port) || port < 1 || port > 65535) {
+    throw new Error(
+      `Invalid PORT value: "${portRaw}". Must be a number between 1 and 65535.`
+    );
+  }
+
   return {
-    port: parseInt(process.env.PORT ?? "9000", 10),
+    port,
     primaryUrl,
     secondaryUrls,
     logLevel,
