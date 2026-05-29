@@ -270,7 +270,7 @@ export class ChargerConnection {
     if (state.queue.length >= SECONDARY_MAX_QUEUE) {
       state.queue.shift();
       this.log.warn("secondary queue full, dropping oldest message", {
-        url: state.url,
+        url: buildUpstreamUrl(state.url, this.chargePointId),
         max: SECONDARY_MAX_QUEUE,
       });
     }
@@ -280,7 +280,7 @@ export class ChargerConnection {
   private flushSecondaryQueue(state: SecondaryState, ws: WebSocket) {
     if (state.queue.length === 0) return;
     this.log.info("secondary flushing queued messages", {
-      url: state.url,
+      url: buildUpstreamUrl(state.url, this.chargePointId),
       count: state.queue.length,
     });
     for (const msg of state.queue) {
@@ -300,7 +300,7 @@ export class ChargerConnection {
 
       if (Date.now() - state.lastPongAt > SECONDARY_PONG_TIMEOUT_MS) {
         this.log.warn("secondary pong timeout, forcing reconnect", {
-          url: state.url,
+          url: buildUpstreamUrl(state.url, this.chargePointId),
         });
         try { ws.close(4000, "pong timeout"); } catch { /* */ }
         return;
@@ -326,7 +326,7 @@ export class ChargerConnection {
     if (state.reconnectTimer !== null) return;
 
     this.log.info("secondary reconnecting", {
-      url: state.url,
+      url: buildUpstreamUrl(state.url, this.chargePointId),
       delayMs: SECONDARY_RECONNECT_DELAY_MS,
     });
 
