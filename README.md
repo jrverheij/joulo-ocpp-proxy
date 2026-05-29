@@ -37,6 +37,16 @@ graph LR
 
 The **primary CSMS** has full control — it can send commands like `RemoteStartTransaction` back to the charger. You can attach any number of **secondary backends** that receive a read-only copy of the charger's messages (boot notifications, meter values, start/stop transactions, etc.), but their responses are never sent back to the charger. Secondary connections are best-effort — if one fails, it never affects the charger or the primary link.
 
+### Secondary reliability
+
+Because charger sessions can stay open for days or weeks, secondaries get a few extras so a brief network blip doesn't silently break your mirror for the rest of the session:
+
+- **Auto-reconnect** — if a secondary disconnects, the proxy reconnects after 10s and keeps retrying until the charger session ends.
+- **Keepalive ping** — the proxy sends a WebSocket ping to each secondary every 30s so idle connections aren't dropped by load balancers or CSMS timeouts.
+- **Bounded queue** — while a secondary is reconnecting, up to 100 messages per secondary are buffered and replayed once it's back. Older messages are dropped first if the buffer fills.
+
+A secondary failure never affects the charger or the primary link.
+
 ## Quick start
 
 ### Using Docker (recommended)
