@@ -60,6 +60,7 @@ export class ChargerConnection {
   private primary: WebSocket | null = null;
   private secondaries: SecondaryState[] = [];
   private alive = true;
+  private primaryQueue: string[] = [];
 
   constructor(
     private readonly charger: WebSocket,
@@ -96,6 +97,8 @@ export class ChargerConnection {
 
       if (this.primary?.readyState === WebSocket.OPEN) {
         this.primary.send(raw);
+      } else {
+        this.primaryQueue.push(raw);
       }
 
       for (const sec of this.secondaries) {
@@ -159,6 +162,17 @@ export class ChargerConnection {
 
     ws.on("open", () => {
       this.log.info("primary connected", { url });
+      if (this.primaryQueue.length > 0) {
+        this.log.info(`primary flushing ${this.primaryQueue.length} queued messages`, { url });
+        for (const msg of this.primaryQueue) {
+          try {
+            ws.send(msg);
+          } catch {
+            /* best-effort */
+          }
+        }
+        this.primaryQueue = [];
+      }
     });
 
     ws.on("message", (data) => {
@@ -334,6 +348,7 @@ export class ChargerConnection {
   public teardown() {
     if (!this.alive) return;
     this.alive = false;
+    this.primaryQueue = [];
 
     for (const sec of this.secondaries) {
       this.stopSecondaryKeepalive(sec);
