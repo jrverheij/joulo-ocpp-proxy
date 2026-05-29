@@ -28,9 +28,9 @@ export function loadConfig(): Config {
 
   const portRaw = process.env.PORT ?? "9000";
   const port = parseInt(portRaw, 10);
-  if (isNaN(port) || port < 1 || port > 65535) {
+  if (!Number.isFinite(port) || port < 1 || port > 65535) {
     throw new Error(
-      `Invalid PORT value: "${portRaw}". Must be a number between 1 and 65535.`
+      `Invalid PORT value: "${portRaw}". Must be an integer between 1 and 65535.`
     );
   }
 
