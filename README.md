@@ -1,12 +1,18 @@
-# Copy of joulo-ocpp-proxy - with added fuctionality
-Added (with AI):
-- secondary reconnect
-- keepalive ping
-- message queue (max 100)
-- Memoryleak fix Websocket
-- Port validation
+# jrverheij/joulo-ocpp-proxy
 
-# original:
+A highly reliable, lightweight **OCPP WebSocket proxy** sitting between EV chargers and multiple CSMS backends.
+
+This fork builds upon the original `joulo-nl/joulo-ocpp-proxy` and adds critical production-ready enhancements:
+*   **Stale Session Cleanup (PR #3):** Automatically destroys any existing stale sessions when a charger reconnects, cleanly terminating the zombie WebSocket connection to the primary CSMS (like EVC-net/Shell). This prevents charger reconnect loops.
+*   **Query Parameter & Token Support:** Properly formats upstream URLs when query parameters are used (e.g. `?auth=token`), cleanly inserting the `chargePointId` in the URL path segment before the query string.
+*   **WebSocket autoPong Guard (PR #2):** Added `autoPong: false` to WebSocket interfaces to prevent conflicts and ensure stable connection states.
+*   **All Upstream Improvements Integrated:**
+    *   One-way **Secondary CSMS Mirroring** with auto-reconnect.
+    *   **Keepalive Ping & Pong** monitoring with automatic dead connection detection and recovery.
+    *   **Bounded Message Queue (max 100)** to buffer messages during temporary network blips.
+    *   Robust **Port Validation** and WebSocket memory leak protections.
+
+# original readme:
 
 A lightweight **OCPP WebSocket proxy** that sits between your EV chargers and one or more CSMS backends. It forwards all traffic to a **primary CSMS** and optionally mirrors it to **secondary backends** — perfect for monitoring, analytics, or migrating between platforms without reconfiguring your chargers.
 
