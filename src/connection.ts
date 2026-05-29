@@ -19,6 +19,12 @@ const SECONDARY_RECONNECT_DELAY_MS = 10_000;
 const SECONDARY_KEEPALIVE_INTERVAL_MS = 30_000;
 const MAX_SECONDARY_QUEUE = 100;
 
+function buildUpstreamUrl(baseUrl: string, chargePointId: string): string {
+  const [path, query] = baseUrl.split("?");
+  const cleanPath = `${path.replace(/\/+$/, "")}/${chargePointId}`;
+  return query ? `${cleanPath}?${query}` : cleanPath;
+}
+
 export class ChargerConnection {
   private readonly log;
   private primary: WebSocket | null = null;
@@ -36,7 +42,8 @@ export class ChargerConnection {
     private readonly primaryUrl: string,
     private readonly secondaryUrls: string[],
     private readonly protocol: string,
-    private readonly authHeader: string | undefined
+    private readonly authHeader: string | undefined,
+    private readonly endCallback?: () => void
   ) {
     this.log = createLogger(chargePointId);
     this.setup();
@@ -116,7 +123,7 @@ export class ChargerConnection {
   private connectUpstream(baseUrl: string, isPrimary: true, _idx: -1): WebSocket;
   private connectUpstream(baseUrl: string, isPrimary: false, idx: number): WebSocket;
   private connectUpstream(baseUrl: string, isPrimary: boolean, idx: number): WebSocket {
-    const url = `${baseUrl.replace(/\/+$/, "")}/${this.chargePointId}`;
+    const url = buildUpstreamUrl(baseUrl, this.chargePointId);
     const label = isPrimary ? "primary" : "secondary";
 
     const headers: Record<string, string> = {};
@@ -127,6 +134,7 @@ export class ChargerConnection {
     const ws = new WebSocket(url, this.protocol ? [this.protocol] : OCPP_SUBPROTOCOLS, {
       headers,
       handshakeTimeout: 10_000,
+      autoPong: false,
     });
 
     ws.on("open", () => {
@@ -184,7 +192,7 @@ export class ChargerConnection {
 
   /** Connect (or reconnect) a secondary, with keepalive and auto-reconnect. */
   private connectSecondary(baseUrl: string, idx: number): WebSocket {
-    const url = `${baseUrl.replace(/\/+$/, "")}/${this.chargePointId}`;
+    const url = buildUpstreamUrl(baseUrl, this.chargePointId);
 
     const headers: Record<string, string> = {};
     if (this.authHeader) {
@@ -194,6 +202,7 @@ export class ChargerConnection {
     const ws = new WebSocket(url, this.protocol ? [this.protocol] : OCPP_SUBPROTOCOLS, {
       headers,
       handshakeTimeout: 10_000,
+      autoPong: false,
     });
 
     ws.on("open", () => {
@@ -250,7 +259,7 @@ export class ChargerConnection {
   private scheduleSecondaryReconnect(baseUrl: string, idx: number) {
     if (!this.alive) return;
     this.log.info("secondary reconnecting", {
-      url: `${baseUrl.replace(/\/+$/, "")}/${this.chargePointId}`,
+      url: buildUpstreamUrl(baseUrl, this.chargePointId),
       delayMs: SECONDARY_RECONNECT_DELAY_MS,
     });
     setTimeout(() => {
@@ -267,7 +276,7 @@ export class ChargerConnection {
     }
   }
 
-  private teardown() {
+  public teardown() {
     if (!this.alive) return;
     this.alive = false;
 
@@ -287,6 +296,7 @@ export class ChargerConnection {
     close(this.charger);
 
     this.log.info("session ended");
+    this.endCallback?.();
   }
 
   /** Return a short summary string for logging (avoids dumping huge payloads). */

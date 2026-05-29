@@ -24,8 +24,11 @@ export function startProxy(config: Config) {
     );
   });
 
+  const sessions = new Map<string, ChargerConnection>();
+
   const wss = new WebSocketServer({
     server,
+    autoPong: false,
     handleProtocols: (protocols) => {
       for (const p of OCPP_SUBPROTOCOLS) {
         if (protocols.has(p)) return p;
@@ -53,14 +56,22 @@ export function startProxy(config: Config) {
       ip: req.socket.remoteAddress,
     });
 
-    new ChargerConnection(
+    const existing = sessions.get(chargePointId);
+    if (existing) {
+      log.info("replacing existing session", { chargePointId });
+      existing.teardown();
+    }
+
+    const conn = new ChargerConnection(
       ws,
       chargePointId,
       config.primaryUrl,
       config.secondaryUrls,
       protocol,
-      authHeader
+      authHeader,
+      () => sessions.delete(chargePointId)
     );
+    sessions.set(chargePointId, conn);
   });
 
   wss.on("error", (err) => {
