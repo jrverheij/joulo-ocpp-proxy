@@ -464,7 +464,7 @@ function getDashboardHtml(config: Config): string {
               <span id="active-sessions-count" class="metric-value">0</span>
             </div>
             <div class="metric-item">
-              <span class="metric-label">Total Messages</span>
+              <span class="metric-label" style="cursor: help; border-bottom: 1px dotted rgba(255, 255, 255, 0.3);" title="Total processed WebSocket frames across all active connection legs (includes mirrored traffic and secondary backends responses)">Total Messages ℹ️</span>
               <span id="total-message-count" class="metric-value">0</span>
             </div>
           </div>
@@ -688,15 +688,30 @@ function getDashboardHtml(config: Config): string {
             });
 
             // Active charger details
+            const connDate = new Date(session.connectedAt);
+            const connTimeStr = connDate.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            const s = session.uptimeSeconds;
+            const hr = Math.floor(s / 3600);
+            const min = Math.floor((s % 3600) / 60);
+            const sec = s % 60;
+            const durationParts = [];
+            if (hr > 0) durationParts.push(hr + 'h');
+            if (min > 0) durationParts.push(min + 'm');
+            durationParts.push(sec + 's');
+            const sessionDurationStr = durationParts.join(' ');
+
             let typesHtml = '';
             if (session.messageTypes && Object.keys(session.messageTypes).length > 0) {
-              typesHtml += '<div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; width: 100%;">';
+              typesHtml += '<div style="margin-top: 1rem; width: 100%;">' +
+                '<div style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">OCPP Message Types (Current Session)</div>' +
+                '<div style="display: flex; flex-wrap: wrap; gap: 0.5rem; width: 100%;">';
               for (const [type, count] of Object.entries(session.messageTypes)) {
                 typesHtml += '<span style="font-size: 0.75rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.25rem 0.55rem; border-radius: 6px; color: #cbd5e1; display: inline-flex; align-items: center; gap: 0.25rem;">' +
                   type + ': <strong style="color: #a78bfa; font-weight: 600;">' + count + '</strong>' +
                 '</span>';
               }
-              typesHtml += '</div>';
+              typesHtml += '</div></div>';
             }
 
             chargersHtml += '<div class="charger-row" style="flex-direction: column; align-items: stretch; gap: 0.75rem; padding: 1.5rem;">' +
@@ -704,6 +719,7 @@ function getDashboardHtml(config: Config): string {
                 '<div class="charger-meta">' +
                   '<span class="charger-tag"><span class="pulse"></span>' + session.chargePointId + '</span>' +
                   '<span class="charger-sub">IP: ' + session.ipAddress + ' | Protocol: ' + session.protocol + '</span>' +
+                  '<span class="charger-sub" style="font-size: 0.8rem; margin-top: 0.15rem; color: var(--text-muted);">Connected since: ' + connTimeStr + ' (' + sessionDurationStr + ' ago)</span>' +
                 '</div>' +
                 '<div class="charger-meta" style="text-align: right;">' +
                   '<span class="charger-tag" style="font-weight: 500; font-size: 1rem; color: #a78bfa;">' + session.latestPower.toFixed(2) + ' kW</span>' +
