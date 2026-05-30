@@ -161,18 +161,39 @@ export function maskUrlForVisitor(url: string): string {
   }
 }
 
-function parseMeterValues(msgStr: string): { power?: number; energy?: number } | null {
+interface ParsedMetrics {
+  power?: number;
+  energy?: number;
+  transactionId?: number;
+}
+
+function parseMeterValues(msgStr: string): ParsedMetrics | null {
   try {
     const parsed = JSON.parse(msgStr);
     if (!Array.isArray(parsed) || parsed[0] !== 2 || parsed[2] !== "MeterValues") return null;
     const payload = parsed[3] as Record<string, any>;
     if (!payload || !Array.isArray(payload.meterValue)) return null;
 
-    let power: number | undefined;
-    let energy: number | undefined;
+    const transactionId = payload.transactionId;
+    let powerTotal = 0;
+    let hasPower = false;
+    let energyTotal = 0;
+    let hasEnergy = false;
 
     for (const entry of payload.meterValue) {
       if (!Array.isArray(entry.sampledValue)) continue;
+
+      let entryPower = 0;
+      let entryHasPower = false;
+      let entryEnergy = 0;
+      let entryHasEnergy = false;
+
+      const phasePowers: Record<string, number> = {};
+      let totalPower: number | undefined;
+
+      const phaseEnergies: Record<string, number> = {};
+      let totalEnergy: number | undefined;
+
       for (const sample of entry.sampledValue) {
         const valStr = sample.value;
         const val = parseFloat(valStr);
@@ -180,15 +201,58 @@ function parseMeterValues(msgStr: string): { power?: number; energy?: number } |
 
         const measurand = sample.measurand ?? "Energy.Active.Import.Register";
         const unit = (sample.unit ?? (measurand === "Power.Active.Import" ? "W" : "Wh")).toLowerCase();
+        const phase = sample.phase;
 
         if (measurand === "Power.Active.Import") {
-          power = unit === "w" ? val / 1000 : val;
+          const powerKw = unit === "w" ? val / 1000 : val;
+          if (phase) {
+            phasePowers[phase] = powerKw;
+          } else {
+            totalPower = powerKw;
+          }
         } else if (measurand === "Energy.Active.Import.Register") {
-          energy = unit === "wh" ? val / 1000 : val;
+          const energyKwh = unit === "wh" ? val / 1000 : val;
+          if (phase) {
+            phaseEnergies[phase] = energyKwh;
+          } else {
+            totalEnergy = energyKwh;
+          }
         }
       }
+
+      const phasePowerSum = Object.values(phasePowers).reduce((sum, p) => sum + p, 0);
+      if (phasePowerSum > 0) {
+        entryPower = phasePowerSum;
+        entryHasPower = true;
+      } else if (totalPower !== undefined) {
+        entryPower = totalPower;
+        entryHasPower = true;
+      }
+
+      const phaseEnergySum = Object.values(phaseEnergies).reduce((sum, e) => sum + e, 0);
+      if (phaseEnergySum > 0) {
+        entryEnergy = phaseEnergySum;
+        entryHasEnergy = true;
+      } else if (totalEnergy !== undefined) {
+        entryEnergy = totalEnergy;
+        entryHasEnergy = true;
+      }
+
+      if (entryHasPower) {
+        powerTotal = entryPower;
+        hasPower = true;
+      }
+      if (entryHasEnergy) {
+        energyTotal = entryEnergy;
+        hasEnergy = true;
+      }
     }
-    return { power, energy };
+
+    return {
+      power: hasPower ? powerTotal : undefined,
+      energy: hasEnergy ? energyTotal : undefined,
+      transactionId,
+    };
   } catch {
     return null;
   }
@@ -218,6 +282,12 @@ export class ChargerConnection {
   private powerHistory: { time: number; value: number }[] = [];
   private energyHistory: { time: number; value: number }[] = [];
   private readonly messageTypes: Record<string, number> = {};
+
+  // Session tracking & Fallback calculation
+  private initialEnergy: number | null = null;
+  private currentTransactionId: number | null = null;
+  private lastEnergyTime: number | null = null;
+  private lastEnergyValue: number | null = null;
 
   private trackMessage(raw: string) {
     try {
@@ -274,19 +344,97 @@ export class ChargerConnection {
       this.trackMessage(raw);
       this.log.debug("charger → proxy", { message: this.summarise(raw) });
 
+      // Intercept StartTransaction to immediately reset session energy
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed[0] === 2 && parsed[2] === "StartTransaction") {
+          const payload = parsed[3] as Record<string, any>;
+          if (payload && typeof payload.meterStart === "number") {
+            const startWh = payload.meterStart;
+            this.initialEnergy = startWh / 1000;
+            this.latestEnergy = 0;
+            this.energyHistory = [];
+            this.log.info("intercepted StartTransaction: resetting initial session energy", {
+              meterStartKwh: this.initialEnergy
+            });
+          }
+        }
+      } catch {
+        // ignore JSON parse errors
+      }
+
       // Parse OCPP MeterValues for dashboard graphs
       const metrics = parseMeterValues(raw);
       if (metrics) {
         const timestamp = Date.now();
-        if (metrics.power !== undefined) {
-          this.latestPower = metrics.power;
-          this.powerHistory.push({ time: timestamp, value: metrics.power });
-          if (this.powerHistory.length > 100) this.powerHistory.shift();
+
+        // Log the parsed metrics for debugging
+        this.log.debug("parsed meter values", { metrics });
+
+        // Reset session energy on transaction change
+        if (metrics.transactionId !== undefined) {
+          if (this.currentTransactionId !== metrics.transactionId) {
+            this.log.info("transaction changed, resetting session energy", {
+              old: this.currentTransactionId,
+              new: metrics.transactionId
+            });
+            this.currentTransactionId = metrics.transactionId;
+            this.initialEnergy = null; // will reset on next energy reading
+            this.energyHistory = [];
+          }
         }
+
+        // Handle energy & session energy calculation
         if (metrics.energy !== undefined) {
-          this.latestEnergy = metrics.energy;
-          this.energyHistory.push({ time: timestamp, value: metrics.energy });
+          if (this.initialEnergy === null) {
+            this.initialEnergy = metrics.energy;
+            this.log.info("set initial session energy", { initialEnergy: this.initialEnergy });
+          }
+
+          const calculatedSessionEnergy = Math.max(0, metrics.energy - this.initialEnergy);
+          this.latestEnergy = calculatedSessionEnergy;
+
+          this.energyHistory.push({ time: timestamp, value: calculatedSessionEnergy });
           if (this.energyHistory.length > 100) this.energyHistory.shift();
+        }
+
+        // Handle power (with fallback calculation)
+        let resolvedPower: number | undefined = metrics.power;
+
+        if (resolvedPower === undefined && metrics.energy !== undefined) {
+          if (this.lastEnergyTime !== null && this.lastEnergyValue !== null) {
+            const timeDeltaMs = timestamp - this.lastEnergyTime;
+            const energyDeltaKwh = metrics.energy - this.lastEnergyValue;
+
+            if (energyDeltaKwh > 0) {
+              const timeDeltaHours = timeDeltaMs / 3600000;
+              const calculatedPower = energyDeltaKwh / timeDeltaHours;
+
+              if (calculatedPower >= 0 && calculatedPower <= 150) {
+                resolvedPower = calculatedPower;
+                this.latestPower = resolvedPower;
+                this.powerHistory.push({ time: timestamp, value: resolvedPower });
+                if (this.powerHistory.length > 100) this.powerHistory.shift();
+              }
+
+              this.lastEnergyTime = timestamp;
+              this.lastEnergyValue = metrics.energy;
+            } else if (timeDeltaMs > 120000) {
+              // No energy increase for > 2 minutes: power has dropped to 0
+              resolvedPower = 0;
+              this.latestPower = resolvedPower;
+              this.powerHistory.push({ time: timestamp, value: resolvedPower });
+              if (this.powerHistory.length > 100) this.powerHistory.shift();
+              this.lastEnergyTime = timestamp;
+            }
+          } else {
+            this.lastEnergyTime = timestamp;
+            this.lastEnergyValue = metrics.energy;
+          }
+        } else if (resolvedPower !== undefined) {
+          this.latestPower = resolvedPower;
+          this.powerHistory.push({ time: timestamp, value: resolvedPower });
+          if (this.powerHistory.length > 100) this.powerHistory.shift();
         }
       }
 
