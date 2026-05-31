@@ -687,9 +687,8 @@ function getDashboardHtml(config: Config): string {
               '</div>';
             });
 
-            // Active charger details
             const connDate = new Date(session.connectedAt);
-            const connTimeStr = connDate.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const connTimeStr = connDate.toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
             
             const s = session.uptimeSeconds;
             const hr = Math.floor(s / 3600);
@@ -731,12 +730,12 @@ function getDashboardHtml(config: Config): string {
 
             // Update Chart Data (takes first active session for simplification)
             if (session.powerHistory && session.powerHistory.length > 0) {
-              powerChartInstance.data.labels = session.powerHistory.map(p => new Date(p.time).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+              powerChartInstance.data.labels = session.powerHistory.map(p => new Date(p.time).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
               powerChartInstance.data.datasets[0].data = session.powerHistory.map(p => p.value);
               powerChartInstance.update();
             }
             if (session.energyHistory && session.energyHistory.length > 0) {
-              energyChartInstance.data.labels = session.energyHistory.map(e => new Date(e.time).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+              energyChartInstance.data.labels = session.energyHistory.map(e => new Date(e.time).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
               energyChartInstance.data.datasets[0].data = session.energyHistory.map(e => e.value);
               energyChartInstance.update();
             }
