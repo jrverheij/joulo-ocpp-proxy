@@ -200,18 +200,27 @@ function parseMeterValues(msgStr: string): ParsedMetrics | null {
         if (isNaN(val)) continue;
 
         const measurand = sample.measurand ?? "Energy.Active.Import.Register";
-        const unit = (sample.unit ?? (measurand === "Power.Active.Import" ? "W" : "Wh")).toLowerCase();
         const phase = sample.phase;
 
         if (measurand === "Power.Active.Import") {
-          const powerKw = unit === "w" ? val / 1000 : val;
+          let resolvedUnit = sample.unit;
+          if (!resolvedUnit) {
+            // Guess unit based on value: if > 150, it is likely in Watts (W)
+            resolvedUnit = val > 150 ? "W" : "kW";
+          }
+          const powerKw = resolvedUnit.toLowerCase() === "w" ? val / 1000 : val;
           if (phase) {
             phasePowers[phase] = powerKw;
           } else {
             totalPower = powerKw;
           }
         } else if (measurand === "Energy.Active.Import.Register") {
-          const energyKwh = unit === "wh" ? val / 1000 : val;
+          let resolvedUnit = sample.unit;
+          if (!resolvedUnit) {
+            // Guess unit based on value: if > 10000 and is an integer, it is likely in Wh
+            resolvedUnit = (val > 10000 && val % 1 === 0) ? "Wh" : "kWh";
+          }
+          const energyKwh = resolvedUnit.toLowerCase() === "wh" ? val / 1000 : val;
           if (phase) {
             phaseEnergies[phase] = energyKwh;
           } else {
@@ -354,6 +363,10 @@ export class ChargerConnection {
             this.initialEnergy = startWh / 1000;
             this.latestEnergy = 0;
             this.energyHistory = [];
+            this.lastEnergyTime = null;
+            this.lastEnergyValue = null;
+            this.latestPower = 0;
+            this.powerHistory = [];
             this.log.info("intercepted StartTransaction: resetting initial session energy", {
               meterStartKwh: this.initialEnergy
             });
@@ -381,6 +394,10 @@ export class ChargerConnection {
             this.currentTransactionId = metrics.transactionId;
             this.initialEnergy = null; // will reset on next energy reading
             this.energyHistory = [];
+            this.lastEnergyTime = null;
+            this.lastEnergyValue = null;
+            this.latestPower = 0;
+            this.powerHistory = [];
           }
         }
 
