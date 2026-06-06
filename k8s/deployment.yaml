@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ocpp-proxy-queue-pvc
+  namespace: ocpp
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 50Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ocpp-proxy
+  namespace: ocpp
+  labels:
+    app: ocpp-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ocpp-proxy
+  strategy:
+    type: Recreate # Ensures the RWO volume is unmounted from the old pod before the new pod mounts it
+  template:
+    metadata:
+      labels:
+        app: ocpp-proxy
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - k3s-00
+              weight: 100
+      containers:
+        - name: ocpp-proxy
+          image: ghcr.io/jrverheij/joulo-ocpp-proxy:main
+          imagePullPolicy: Always
+          env:
+            - name: LOG_LEVEL
+              value: debug
+            - name: PRIMARY_CSMS_URL
+              value: wss://ws.evc-net.com/
+            - name: SECONDARY_CSMS_URLS
+              value: wss://ocpp.joulo.nl?auth=z84G7zE563pGfbbsDzZ2,ws://ocpp-homeassistant.home-automation.svc.cluster.local:9000,ws://evcc-service.evcc.svc.cluster.local:8887
+            - name: QUEUE_DIR
+              value: /app/queue
+          ports:
+            - containerPort: 9000
+          volumeMounts:
+            - name: queue-volume
+              mountPath: /app/queue
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 9000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 9000
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: queue-volume
+          persistentVolumeClaim:
+            claimName: ocpp-proxy-queue-pvc
