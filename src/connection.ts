@@ -1,6 +1,9 @@
 import WebSocket from "ws";
+import fs from "fs";
+import path from "path";
 import { createLogger } from "./logger";
 import { OCPP_MSG_CALL, OCPP_SUBPROTOCOLS } from "./types";
+import { PersistentQueue } from "./queue";
 
 /**
  * Manages the full lifecycle of a single charger connection:
@@ -36,6 +39,9 @@ function buildUpstreamUrl(baseUrl: string, chargePointId: string): string {
   const [path, query] = baseUrl.split("?");
   const cleanPath = `${path.replace(/\/+$/, "")}/${chargePointId}`;
   return query ? `${cleanPath}?${query}` : cleanPath;
+}
+function roundToThreeDecimals(val: number): number {
+  return Math.round(val * 1000) / 1000;
 }
 
 export function maskString(str: string): string {
@@ -267,10 +273,38 @@ function parseMeterValues(msgStr: string): ParsedMetrics | null {
   }
 }
 
+function isCriticalMessage(raw: string): { critical: boolean; messageId?: string } {
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed[0] === 2 && typeof parsed[2] === "string") {
+      const action = parsed[2];
+      const isCritical =
+        action === "StopTransaction" ||
+        action === "MeterValues" ||
+        action === "StartTransaction";
+      return { critical: isCritical, messageId: String(parsed[1]) };
+    }
+  } catch {}
+  return { critical: false };
+}
+
+function sendAsync(ws: WebSocket, data: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (ws.readyState !== WebSocket.OPEN) {
+      return reject(new Error("WebSocket is not open"));
+    }
+    ws.send(data, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+}
+
 interface SecondaryState {
   url: string;
   ws: WebSocket | null;
   queue: string[];
+  diskQueue: PersistentQueue;
   keepalive: ReturnType<typeof setInterval> | null;
   reconnectTimer: ReturnType<typeof setTimeout> | null;
   lastPongAt: number;
@@ -284,7 +318,7 @@ export class ChargerConnection {
   private primaryQueue: string[] = [];
 
   // Metrics
-  private readonly connectedAt = Date.now();
+  private connectedAt = Date.now();
   private messageCount = 0;
   private latestPower = 0;
   private latestEnergy = 0;
@@ -297,6 +331,11 @@ export class ChargerConnection {
   private currentTransactionId: number | null = null;
   private lastEnergyTime: number | null = null;
   private lastEnergyValue: number | null = null;
+
+  // Persistent stats
+  private lifetimeChargedEnergyKwh = 0;
+  private lastStateWriteTime = 0;
+  private lastMessageAt: number | null = null;
 
   private trackMessage(raw: string) {
     try {
@@ -322,6 +361,7 @@ export class ChargerConnection {
     private readonly chargePointId: string,
     private readonly primaryUrl: string,
     private readonly secondaryUrls: string[],
+    private readonly queueDir: string,
     private readonly protocol: string,
     private readonly authHeader: string | undefined,
     private readonly ipAddress: string,
@@ -331,14 +371,81 @@ export class ChargerConnection {
     this.setup();
   }
 
+  private loadSessionStateSync() {
+    const filePath = path.join(this.queueDir, this.chargePointId, "session_state.json");
+    if (!fs.existsSync(filePath)) return;
+    try {
+      const raw = fs.readFileSync(filePath, "utf8");
+      const state = JSON.parse(raw);
+      this.connectedAt = state.connectedAt ?? this.connectedAt;
+      this.messageCount = state.messageCount ?? 0;
+      this.latestPower = state.latestPower ?? 0;
+      this.latestEnergy = state.latestEnergy ?? 0;
+      this.powerHistory = state.powerHistory ?? [];
+      this.energyHistory = state.energyHistory ?? [];
+      Object.assign(this.messageTypes, state.messageTypes ?? {});
+      this.initialEnergy = state.initialEnergy ?? null;
+      this.currentTransactionId = state.currentTransactionId ?? null;
+      this.lastEnergyTime = state.lastEnergyTime ?? null;
+      this.lastEnergyValue = state.lastEnergyValue ?? null;
+      this.lifetimeChargedEnergyKwh = state.lifetimeChargedEnergyKwh ?? 0;
+      this.lastMessageAt = state.lastMessageAt ?? null;
+      this.log.info("Loaded persistent session state from disk", { filePath });
+    } catch (err: any) {
+      this.log.error("Failed to load persistent session state", { error: err.message });
+    }
+  }
+
+  private async saveSessionState(force = false) {
+    if (!force && Date.now() - this.lastStateWriteTime < 10_000) {
+      return;
+    }
+    this.lastStateWriteTime = Date.now();
+
+    const filePath = path.join(this.queueDir, this.chargePointId, "session_state.json");
+    const state = {
+      connectedAt: this.connectedAt,
+      messageCount: this.messageCount,
+      latestPower: this.latestPower,
+      latestEnergy: this.latestEnergy,
+      powerHistory: this.powerHistory,
+      energyHistory: this.energyHistory,
+      messageTypes: this.messageTypes,
+      initialEnergy: this.initialEnergy,
+      currentTransactionId: this.currentTransactionId,
+      lastEnergyTime: this.lastEnergyTime,
+      lastEnergyValue: this.lastEnergyValue,
+      lifetimeChargedEnergyKwh: this.lifetimeChargedEnergyKwh,
+      lastMessageAt: this.lastMessageAt,
+    };
+
+    try {
+      await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+      await fs.promises.writeFile(filePath, JSON.stringify(state, null, 2), "utf8");
+      this.log.debug("Saved persistent session state to disk", { filePath });
+    } catch (err: any) {
+      this.log.error("Failed to save persistent session state", { error: err.message });
+    }
+  }
+
   private setup() {
+    this.loadSessionStateSync();
     this.primary = this.connectPrimary(this.primaryUrl);
 
     for (const url of this.secondaryUrls) {
+      const diskQueue = new PersistentQueue(this.queueDir, this.chargePointId, url);
+      diskQueue.init().catch((err) => {
+        this.log.error("Failed to initialize secondary disk queue", {
+          url: maskUrl(url),
+          error: err.message,
+        });
+      });
+
       const state: SecondaryState = {
         url,
         ws: null,
         queue: [],
+        diskQueue,
         keepalive: null,
         reconnectTimer: null,
         lastPongAt: Date.now(),
@@ -348,28 +455,59 @@ export class ChargerConnection {
     }
 
     this.charger.on("message", (data) => {
+      this.lastMessageAt = Date.now();
       this.messageCount++;
       const raw = data.toString();
       this.trackMessage(raw);
       this.log.debug("charger → proxy", { message: this.summarise(raw) });
 
-      // Intercept StartTransaction to immediately reset session energy
+      // Intercept StartTransaction and StopTransaction
       try {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed[0] === 2 && parsed[2] === "StartTransaction") {
-          const payload = parsed[3] as Record<string, any>;
-          if (payload && typeof payload.meterStart === "number") {
-            const startWh = payload.meterStart;
-            this.initialEnergy = startWh / 1000;
+        if (Array.isArray(parsed) && parsed[0] === 2) {
+          if (parsed[2] === "StartTransaction") {
+            const payload = parsed[3] as Record<string, any>;
+            if (payload && typeof payload.meterStart === "number") {
+              // Commit previous session's energy before resetting if we had an ongoing transaction
+              if (this.initialEnergy !== null && this.latestEnergy !== undefined) {
+                this.lifetimeChargedEnergyKwh = roundToThreeDecimals(this.lifetimeChargedEnergyKwh + this.latestEnergy);
+                this.log.info("Committing energy from previous transaction to lifetime total", {
+                  committedKwh: this.latestEnergy,
+                  newLifetimeKwh: this.lifetimeChargedEnergyKwh
+                });
+              }
+
+              const startWh = payload.meterStart;
+              this.initialEnergy = roundToThreeDecimals(startWh / 1000);
+              this.currentTransactionId = null;
+              this.latestEnergy = 0;
+              this.energyHistory = [];
+              this.lastEnergyTime = null;
+              this.lastEnergyValue = null;
+              this.latestPower = 0;
+              this.powerHistory = [];
+              this.log.info("intercepted StartTransaction: resetting initial session energy", {
+                meterStartKwh: this.initialEnergy
+              });
+              this.saveSessionState(true);
+            }
+          } else if (parsed[2] === "StopTransaction") {
+            if (this.initialEnergy !== null && this.latestEnergy !== undefined) {
+              this.lifetimeChargedEnergyKwh = roundToThreeDecimals(this.lifetimeChargedEnergyKwh + this.latestEnergy);
+              this.log.info("intercepted StopTransaction: committing transaction energy to lifetime total", {
+                committedKwh: this.latestEnergy,
+                newLifetimeKwh: this.lifetimeChargedEnergyKwh
+              });
+            }
+            this.initialEnergy = null;
+            this.currentTransactionId = null;
             this.latestEnergy = 0;
             this.energyHistory = [];
             this.lastEnergyTime = null;
             this.lastEnergyValue = null;
             this.latestPower = 0;
             this.powerHistory = [];
-            this.log.info("intercepted StartTransaction: resetting initial session energy", {
-              meterStartKwh: this.initialEnergy
-            });
+            this.saveSessionState(true);
           }
         }
       } catch {
@@ -387,17 +525,32 @@ export class ChargerConnection {
         // Reset session energy on transaction change
         if (metrics.transactionId !== undefined) {
           if (this.currentTransactionId !== metrics.transactionId) {
-            this.log.info("transaction changed, resetting session energy", {
-              old: this.currentTransactionId,
-              new: metrics.transactionId
-            });
+            if (this.currentTransactionId !== null) {
+              this.log.info("transaction changed, resetting session energy", {
+                old: this.currentTransactionId,
+                new: metrics.transactionId
+              });
+              // Commit previous session's energy before resetting if we had an ongoing transaction
+              if (this.initialEnergy !== null && this.latestEnergy !== undefined) {
+                this.lifetimeChargedEnergyKwh = roundToThreeDecimals(this.lifetimeChargedEnergyKwh + this.latestEnergy);
+                this.log.info("Committing energy from changed transaction to lifetime total", {
+                  committedKwh: this.latestEnergy,
+                  newLifetimeKwh: this.lifetimeChargedEnergyKwh
+                });
+              }
+              this.initialEnergy = null; // will reset on next energy reading
+              this.energyHistory = [];
+              this.lastEnergyTime = null;
+              this.lastEnergyValue = null;
+              this.latestPower = 0;
+              this.powerHistory = [];
+            } else {
+              this.log.info("transaction ID resolved", {
+                new: metrics.transactionId
+              });
+            }
             this.currentTransactionId = metrics.transactionId;
-            this.initialEnergy = null; // will reset on next energy reading
-            this.energyHistory = [];
-            this.lastEnergyTime = null;
-            this.lastEnergyValue = null;
-            this.latestPower = 0;
-            this.powerHistory = [];
+            this.saveSessionState(true);
           }
         }
 
@@ -408,7 +561,7 @@ export class ChargerConnection {
             this.log.info("set initial session energy", { initialEnergy: this.initialEnergy });
           }
 
-          const calculatedSessionEnergy = Math.max(0, metrics.energy - this.initialEnergy);
+          const calculatedSessionEnergy = Math.max(0, roundToThreeDecimals(metrics.energy - this.initialEnergy));
           this.latestEnergy = calculatedSessionEnergy;
 
           this.energyHistory.push({ time: timestamp, value: calculatedSessionEnergy });
@@ -462,16 +615,35 @@ export class ChargerConnection {
       }
 
       for (const sec of this.secondaries) {
-        if (sec.ws?.readyState === WebSocket.OPEN) {
-          try {
-            sec.ws.send(raw);
-          } catch {
-            /* best-effort */
-          }
+        const { critical, messageId } = isCriticalMessage(raw);
+        if (sec.ws?.readyState === WebSocket.OPEN && !sec.diskQueue.hasQueuedMessages()) {
+          sendAsync(sec.ws, raw).catch((err) => {
+            this.log.warn("Direct send to secondary failed, queueing instead", {
+              url: maskUrl(sec.url),
+              error: err.message,
+            });
+            if (critical && messageId) {
+              sec.diskQueue.enqueue(messageId, raw).catch(() => {});
+            } else {
+              if (sec.queue.length >= SECONDARY_MAX_QUEUE) sec.queue.shift();
+              sec.queue.push(raw);
+            }
+          });
         } else {
-          this.enqueueForSecondary(sec, raw);
+          if (critical && messageId) {
+            sec.diskQueue.enqueue(messageId, raw).catch((err) => {
+              this.log.error("Failed to write to persistent queue", {
+                messageId,
+                error: err.message,
+              });
+            });
+          } else {
+            if (sec.queue.length >= SECONDARY_MAX_QUEUE) sec.queue.shift();
+            sec.queue.push(raw);
+          }
         }
       }
+      this.saveSessionState(false).catch(() => {});
     });
 
     this.charger.on("close", (code, reason) => {
@@ -530,6 +702,7 @@ export class ChargerConnection {
     });
 
     ws.on("message", (data) => {
+      this.lastMessageAt = Date.now();
       this.messageCount++;
       const raw = data.toString();
       this.trackMessage(raw);
@@ -584,12 +757,13 @@ export class ChargerConnection {
     });
 
     ws.on("message", (data) => {
-      this.messageCount++;
       const raw = data.toString();
       if (raw === "__pong__") {
         state.lastPongAt = Date.now();
         return;
       }
+      this.lastMessageAt = Date.now();
+      this.messageCount++;
       this.log.debug("secondary response (ignored)", {
         url: maskUrl(url),
         message: this.summarise(raw),
@@ -617,28 +791,25 @@ export class ChargerConnection {
     return ws;
   }
 
-  private enqueueForSecondary(state: SecondaryState, raw: string) {
-    if (state.queue.length >= SECONDARY_MAX_QUEUE) {
-      state.queue.shift();
-      this.log.warn("secondary queue full, dropping oldest message", {
+  private async flushSecondaryQueue(state: SecondaryState, ws: WebSocket) {
+    if (state.diskQueue.hasQueuedMessages()) {
+      this.log.info("secondary flushing persistent queue from disk", {
         url: maskUrl(buildUpstreamUrl(state.url, this.chargePointId)),
-        max: SECONDARY_MAX_QUEUE,
+        pendingCount: state.diskQueue.getQueueSize(),
       });
+      await state.diskQueue.flush((data) => sendAsync(ws, data));
     }
-    state.queue.push(raw);
-  }
 
-  private flushSecondaryQueue(state: SecondaryState, ws: WebSocket) {
     if (state.queue.length === 0) return;
-    this.log.info("secondary flushing queued messages", {
+    this.log.info("secondary flushing queued in-memory messages", {
       url: maskUrl(buildUpstreamUrl(state.url, this.chargePointId)),
       count: state.queue.length,
     });
     for (const msg of state.queue) {
       try {
-        ws.send(msg);
+        await sendAsync(ws, msg);
       } catch {
-        /* best-effort */
+        break;
       }
     }
     state.queue = [];
@@ -697,6 +868,11 @@ export class ChargerConnection {
   }
 
   public getMetrics() {
+    const activeSessionEnergy = this.initialEnergy !== null
+      ? this.latestEnergy
+      : 0;
+    const totalLifetime = roundToThreeDecimals(this.lifetimeChargedEnergyKwh + activeSessionEnergy);
+
     return {
       chargePointId: maskString(this.chargePointId),
       primaryUrl: maskUrlForVisitor(buildUpstreamUrl(this.primaryUrl, this.chargePointId)),
@@ -708,14 +884,17 @@ export class ChargerConnection {
       secondaryUrls: this.secondaries.map(sec => ({
         url: maskUrlForVisitor(buildUpstreamUrl(sec.url, this.chargePointId)),
         state: sec.ws?.readyState === WebSocket.OPEN ? "Online" : "Offline",
-        queueSize: sec.queue.length
+        queueSize: sec.queue.length + sec.diskQueue.getQueueSize(),
+        diskQueueSize: sec.diskQueue.getQueueSize()
       })),
       latestPower: this.latestPower,
       latestEnergy: this.latestEnergy,
+      lifetimeChargedEnergyKwh: totalLifetime,
       powerHistory: this.powerHistory,
       energyHistory: this.energyHistory,
       messageCount: this.messageCount,
-      messageTypes: this.messageTypes
+      messageTypes: this.messageTypes,
+      lastMessageAt: this.lastMessageAt
     };
   }
 
@@ -723,6 +902,9 @@ export class ChargerConnection {
     if (!this.alive) return;
     this.alive = false;
     this.primaryQueue = [];
+
+    // Force save final session state on teardown
+    this.saveSessionState(true).catch(() => {});
 
     for (const sec of this.secondaries) {
       this.stopSecondaryKeepalive(sec);

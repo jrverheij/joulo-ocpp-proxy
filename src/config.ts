@@ -3,6 +3,7 @@ export interface Config {
   primaryUrl: string;
   secondaryUrls: string[];
   logLevel: "debug" | "info" | "warn" | "error";
+  queueDir: string;
 }
 
 const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
@@ -34,10 +35,13 @@ export function loadConfig(): Config {
     );
   }
 
+  const queueDir = process.env.QUEUE_DIR ?? "./queue";
+
   return {
     port,
     primaryUrl,
     secondaryUrls,
     logLevel,
+    queueDir,
   };
 }

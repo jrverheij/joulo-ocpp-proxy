@@ -11,6 +11,23 @@ const startedAt = Date.now();
 export function startProxy(config: Config) {
   const sessions = new Map<string, ChargerConnection>();
 
+  const cleanExit = () => {
+    log.info("Shutdown signal received, tearing down active sessions...");
+    for (const session of sessions.values()) {
+      try {
+        session.teardown();
+      } catch (err: any) {
+        log.error("Error tearing down session during shutdown", { error: err.message });
+      }
+    }
+    setTimeout(() => {
+      process.exit(0);
+    }, 500);
+  };
+
+  process.on("SIGTERM", cleanExit);
+  process.on("SIGINT", cleanExit);
+
   const server = createServer((req, res) => {
     const url = req.url || "/";
 
@@ -40,8 +57,7 @@ export function startProxy(config: Config) {
     res.writeHead(200, { "Content-Type": "text/plain" });
     res.end(
       "joulo-ocpp-proxy is running.\n" +
-        "Connect your charge point via WebSocket.\n" +
-        "Status dashboard available at /status\n"
+        "Connect your charge point via WebSocket.\n"
     );
   });
 
@@ -87,6 +103,7 @@ export function startProxy(config: Config) {
       chargePointId,
       config.primaryUrl,
       config.secondaryUrls,
+      config.queueDir,
       protocol,
       authHeader,
       ipAddress,
@@ -512,6 +529,17 @@ function getDashboardHtml(config: Config): string {
     let powerChartInstance = null;
     let energyChartInstance = null;
 
+    function formatDateTime(timeMs) {
+      const date = new Date(timeMs);
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const hh = String(date.getHours()).padStart(2, '0');
+      const min = String(date.getMinutes()).padStart(2, '0');
+      const ss = String(date.getSeconds()).padStart(2, '0');
+      return yyyy + '-' + mm + '-' + dd + ' ' + hh + ':' + min + ':' + ss;
+    }
+
     function formatUptime(seconds) {
       const d = Math.floor(seconds / (3600*24));
       const h = Math.floor((seconds % (3600*24)) / 3600);
@@ -687,8 +715,7 @@ function getDashboardHtml(config: Config): string {
               '</div>';
             });
 
-            const connDate = new Date(session.connectedAt);
-            const connTimeStr = connDate.toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const connTimeStr = formatDateTime(session.connectedAt);
             
             const s = session.uptimeSeconds;
             const hr = Math.floor(s / 3600);
@@ -700,6 +727,23 @@ function getDashboardHtml(config: Config): string {
             durationParts.push(sec + 's');
             const sessionDurationStr = durationParts.join(' ');
 
+            let lastMsgHtml = '';
+            if (session.lastMessageAt) {
+              const lastMsgTimeStr = formatDateTime(session.lastMessageAt);
+              const lastMsgDiffSec = Math.floor((Date.now() - session.lastMessageAt) / 1000);
+              const lmHr = Math.floor(lastMsgDiffSec / 3600);
+              const lmMin = Math.floor((lastMsgDiffSec % 3600) / 60);
+              const lmSec = lastMsgDiffSec % 60;
+              const lmDurationParts = [];
+              if (lmHr > 0) lmDurationParts.push(lmHr + 'h');
+              if (lmMin > 0) lmDurationParts.push(lmMin + 'm');
+              lmDurationParts.push(lmSec + 's');
+              const lastMsgDurationStr = lmDurationParts.join(' ');
+              lastMsgHtml = '<span class="charger-sub" style="font-size: 0.8rem; margin-top: 0.15rem; color: var(--text-muted);">Last message: ' + lastMsgTimeStr + ' (' + lastMsgDurationStr + ' ago)</span>';
+            } else {
+              lastMsgHtml = '<span class="charger-sub" style="font-size: 0.8rem; margin-top: 0.15rem; color: var(--text-muted);">Last message: none</span>';
+            }
+
             let typesHtml = '';
             if (session.messageTypes && Object.keys(session.messageTypes).length > 0) {
               typesHtml += '<div style="margin-top: 1rem; width: 100%;">' +
@@ -707,7 +751,7 @@ function getDashboardHtml(config: Config): string {
                 '<div style="display: flex; flex-wrap: wrap; gap: 0.5rem; width: 100%;">';
               for (const [type, count] of Object.entries(session.messageTypes)) {
                 typesHtml += '<span style="font-size: 0.75rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.25rem 0.55rem; border-radius: 6px; color: #cbd5e1; display: inline-flex; align-items: center; gap: 0.25rem;">' +
-                  type + ': <strong style="color: #a78bfa; font-weight: 600;">' + count + '</strong>' +
+                   type + ': <strong style="color: #a78bfa; font-weight: 600;">' + count + '</strong>' +
                 '</span>';
               }
               typesHtml += '</div></div>';
@@ -719,10 +763,15 @@ function getDashboardHtml(config: Config): string {
                   '<span class="charger-tag"><span class="pulse"></span>' + session.chargePointId + '</span>' +
                   '<span class="charger-sub">IP: ' + session.ipAddress + ' | Protocol: ' + session.protocol + '</span>' +
                   '<span class="charger-sub" style="font-size: 0.8rem; margin-top: 0.15rem; color: var(--text-muted);">Connected since: ' + connTimeStr + ' (' + sessionDurationStr + ' ago)</span>' +
+                  lastMsgHtml +
                 '</div>' +
                 '<div class="charger-meta" style="text-align: right;">' +
                   '<span class="charger-tag" style="font-weight: 500; font-size: 1rem; color: #a78bfa;">' + session.latestPower.toFixed(2) + ' kW</span>' +
-                  '<span class="charger-sub">' + session.latestEnergy.toFixed(2) + ' kWh | ' + session.messageCount + ' msgs</span>' +
+                  '<span class="charger-sub">' +
+                    'Session: ' + session.latestEnergy.toFixed(2) + ' kWh' +
+                    (session.lifetimeChargedEnergyKwh !== undefined ? ' | Total: ' + session.lifetimeChargedEnergyKwh.toFixed(2) + ' kWh' : '') +
+                    ' | ' + session.messageCount + ' msgs' +
+                  '</span>' +
                 '</div>' +
               '</div>' +
               typesHtml +
@@ -730,12 +779,12 @@ function getDashboardHtml(config: Config): string {
 
             // Update Chart Data (takes first active session for simplification)
             if (session.powerHistory && session.powerHistory.length > 0) {
-              powerChartInstance.data.labels = session.powerHistory.map(p => new Date(p.time).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+              powerChartInstance.data.labels = session.powerHistory.map(p => formatDateTime(p.time));
               powerChartInstance.data.datasets[0].data = session.powerHistory.map(p => p.value);
               powerChartInstance.update();
             }
             if (session.energyHistory && session.energyHistory.length > 0) {
-              energyChartInstance.data.labels = session.energyHistory.map(e => new Date(e.time).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+              energyChartInstance.data.labels = session.energyHistory.map(e => formatDateTime(e.time));
               energyChartInstance.data.datasets[0].data = session.energyHistory.map(e => e.value);
               energyChartInstance.update();
             }
