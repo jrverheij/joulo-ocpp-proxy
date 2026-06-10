@@ -377,13 +377,10 @@ export class ChargerConnection {
     try {
       const raw = fs.readFileSync(filePath, "utf8");
       const state = JSON.parse(raw);
-      this.connectedAt = state.connectedAt ?? this.connectedAt;
-      this.messageCount = state.messageCount ?? 0;
       this.latestPower = state.latestPower ?? 0;
       this.latestEnergy = state.latestEnergy ?? 0;
       this.powerHistory = state.powerHistory ?? [];
       this.energyHistory = state.energyHistory ?? [];
-      Object.assign(this.messageTypes, state.messageTypes ?? {});
       this.initialEnergy = state.initialEnergy ?? null;
       this.currentTransactionId = state.currentTransactionId ?? null;
       this.lastEnergyTime = state.lastEnergyTime ?? null;
@@ -762,8 +759,6 @@ export class ChargerConnection {
         state.lastPongAt = Date.now();
         return;
       }
-      this.lastMessageAt = Date.now();
-      this.messageCount++;
       this.log.debug("secondary response (ignored)", {
         url: maskUrl(url),
         message: this.summarise(raw),

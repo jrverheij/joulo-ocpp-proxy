@@ -92,8 +92,10 @@ describe("ChargerConnection State & Accumulator", () => {
 
     const metrics = conn.getMetrics();
     assert.strictEqual(metrics.lifetimeChargedEnergyKwh, 362.0);
-    assert.strictEqual(metrics.messageCount, 50);
+    assert.strictEqual(metrics.messageCount, 0);
     assert.strictEqual(metrics.latestPower, 5.5);
+    assert.strictEqual(metrics.connectedAt !== 123456789, true);
+    assert.strictEqual(Date.now() - metrics.connectedAt < 5000, true);
     conn.teardown();
     // Allow any background writes to finish
     await new Promise((resolve) => setTimeout(resolve, 50));
