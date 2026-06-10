@@ -4,9 +4,21 @@ import type { Config } from "./config";
 import { ChargerConnection, maskUrl, maskString, maskIp, maskUrlForVisitor } from "./connection";
 import { createLogger } from "./logger";
 import { OCPP_SUBPROTOCOLS } from "./types";
+import fs from "fs";
+import path from "path";
 
 const log = createLogger("proxy");
 const startedAt = Date.now();
+
+let version = { sha: "unknown", build: "local" };
+try {
+  const versionPath = path.join(process.cwd(), "version.json");
+  if (fs.existsSync(versionPath)) {
+    version = JSON.parse(fs.readFileSync(versionPath, "utf8"));
+  }
+} catch {
+  // ignore
+}
 
 export function startProxy(config: Config) {
   const sessions = new Map<string, ChargerConnection>();
@@ -44,6 +56,7 @@ export function startProxy(config: Config) {
       });
       const uptimeMs = Date.now() - startedAt;
       const metrics = {
+        version,
         uptimeSeconds: Math.floor(uptimeMs / 1000),
         primaryUrl: maskUrlForVisitor(config.primaryUrl),
         secondaryUrls: config.secondaryUrls.map(u => maskUrlForVisitor(u)),
@@ -463,7 +476,10 @@ function getDashboardHtml(config: Config): string {
     <header>
       <div class="logo-container">
         <div class="logo-icon">🎛️</div>
-        <h1>OCPP Proxy Status</h1>
+        <div>
+          <h1>OCPP Proxy Status</h1>
+          <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace; margin-top: 0.15rem;">Version: ${version.sha}</div>
+        </div>
       </div>
       <div id="uptime" class="uptime-value">Uptime: --</div>
     </header>
