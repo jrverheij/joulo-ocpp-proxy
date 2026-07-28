@@ -220,6 +220,12 @@ function getDashboardHtml(config: Config): string {
       .card:hover {
         border-color: rgba(0, 0, 0, 0.15) !important;
       }
+      .tooltip .tooltiptext {
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+        border: 1px solid rgba(0, 0, 0, 0.1) !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+      }
     }
 
     * {
@@ -353,6 +359,45 @@ function getDashboardHtml(config: Config): string {
     .metric-label {
       font-size: 0.85rem;
       color: var(--text-muted);
+    }
+
+    /* Tooltip container */
+    .tooltip {
+      position: relative;
+      display: inline-block;
+    }
+
+    /* Tooltip text */
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      width: 260px;
+      background-color: #111827;
+      color: #f3f4f6;
+      text-align: center;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      position: absolute;
+      z-index: 100;
+      bottom: 125%; /* Position above the text */
+      left: 50%;
+      margin-left: -130px;
+      opacity: 0;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      transform: translateY(5px);
+      font-size: 0.75rem;
+      font-weight: 400;
+      line-height: 1.35;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      pointer-events: none;
+      white-space: normal;
+    }
+
+    /* Show the tooltip text when hovering */
+    .tooltip:hover .tooltiptext {
+      visibility: visible;
+      opacity: 1;
+      transform: translateY(0);
     }
 
     .metric-value {
@@ -535,7 +580,10 @@ function getDashboardHtml(config: Config): string {
               <span id="active-sessions-count" class="metric-value">0</span>
             </div>
             <div class="metric-item">
-              <span class="metric-label" style="cursor: help; border-bottom: 1px dotted var(--text-muted);" title="Total processed WebSocket frames across all active connection legs (includes mirrored traffic and secondary backends responses)">Total Messages ℹ️</span>
+              <span class="metric-label tooltip" style="cursor: help; border-bottom: 1px dotted var(--text-muted);">
+                Total Messages ℹ️
+                <span class="tooltiptext">Total processed WebSocket frames across all active connection legs (includes mirrored traffic and secondary backends responses).</span>
+              </span>
               <span id="total-message-count" class="metric-value">0</span>
             </div>
           </div>
