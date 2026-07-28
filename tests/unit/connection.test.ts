@@ -1,10 +1,9 @@
-import { describe, it, before, after } from "node:test";
-import assert from "node:assert";
+import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import fs from "fs";
 import fsPromises from "fs/promises";
 import path from "path";
 import { EventEmitter } from "events";
-import { ChargerConnection } from "./connection";
+import { ChargerConnection } from "../../src/connection";
 
 class MockWebSocket extends EventEmitter {
   public readyState = 1; // OPEN
@@ -29,11 +28,11 @@ class MockWebSocket extends EventEmitter {
 describe("ChargerConnection State & Accumulator", () => {
   const testBaseDir = path.resolve("./test-conn-state-temp");
 
-  before(async () => {
+  beforeAll(async () => {
     await fsPromises.rm(testBaseDir, { recursive: true, force: true });
   });
 
-  after(async () => {
+  afterAll(async () => {
     await fsPromises.rm(testBaseDir, { recursive: true, force: true });
   });
 
@@ -52,8 +51,8 @@ describe("ChargerConnection State & Accumulator", () => {
     );
 
     const metrics = conn.getMetrics();
-    assert.strictEqual(metrics.lifetimeChargedEnergyKwh, 0);
-    assert.strictEqual(metrics.messageCount, 0);
+    expect(metrics.lifetimeChargedEnergyKwh).toBe(0);
+    expect(metrics.messageCount).toBe(0);
     conn.teardown();
     // Allow any background writes to finish
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -91,11 +90,11 @@ describe("ChargerConnection State & Accumulator", () => {
     );
 
     const metrics = conn.getMetrics();
-    assert.strictEqual(metrics.lifetimeChargedEnergyKwh, 362.0);
-    assert.strictEqual(metrics.messageCount, 0);
-    assert.strictEqual(metrics.latestPower, 5.5);
-    assert.strictEqual(metrics.connectedAt !== 123456789, true);
-    assert.strictEqual(Date.now() - metrics.connectedAt < 5000, true);
+    expect(metrics.lifetimeChargedEnergyKwh).toBe(362.0);
+    expect(metrics.messageCount).toBe(0);
+    expect(metrics.latestPower).toBe(5.5);
+    expect(metrics.connectedAt !== 123456789).toBe(true);
+    expect(Date.now() - metrics.connectedAt < 5000).toBe(true);
     conn.teardown();
     // Allow any background writes to finish
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -128,15 +127,15 @@ describe("ChargerConnection State & Accumulator", () => {
     mockCharger.emit("message", Buffer.from(mvMsg));
 
     let metrics = conn.getMetrics();
-    assert.strictEqual(metrics.latestEnergy, 5.5);
-    assert.strictEqual(metrics.lifetimeChargedEnergyKwh, 5.5);
+    expect(metrics.latestEnergy).toBe(5.5);
+    expect(metrics.lifetimeChargedEnergyKwh).toBe(5.5);
 
     const stopMsg = JSON.stringify([2, "msg-stop-1", "StopTransaction", {}]);
     mockCharger.emit("message", Buffer.from(stopMsg));
 
     metrics = conn.getMetrics();
-    assert.strictEqual(metrics.latestEnergy, 0);
-    assert.strictEqual(metrics.lifetimeChargedEnergyKwh, 5.5);
+    expect(metrics.latestEnergy).toBe(0);
+    expect(metrics.lifetimeChargedEnergyKwh).toBe(5.5);
 
     const startMsg2 = JSON.stringify([2, "msg-start-2", "StartTransaction", { meterStart: 200000 }]);
     mockCharger.emit("message", Buffer.from(startMsg2));
@@ -151,8 +150,8 @@ describe("ChargerConnection State & Accumulator", () => {
     mockCharger.emit("message", Buffer.from(mvMsg2));
 
     metrics = conn.getMetrics();
-    assert.strictEqual(metrics.latestEnergy, 3.2);
-    assert.strictEqual(metrics.lifetimeChargedEnergyKwh, 8.7);
+    expect(metrics.latestEnergy).toBe(3.2);
+    expect(metrics.lifetimeChargedEnergyKwh).toBe(8.7);
 
     conn.teardown();
     // Allow any background writes to finish
