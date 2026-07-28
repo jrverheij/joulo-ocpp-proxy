@@ -58,8 +58,8 @@ export function startProxy(config: Config) {
       const metrics = {
         version,
         uptimeSeconds: Math.floor(uptimeMs / 1000),
-        primaryUrl: maskUrlForVisitor(config.primaryUrl),
-        secondaryUrls: config.secondaryUrls.map(u => maskUrlForVisitor(u)),
+        primaryUrl: maskUrlForVisitor(config.primaryCsms.url),
+        secondaryUrls: config.secondaryCsms.map(u => maskUrlForVisitor(u.url)),
         activeSessionsCount: sessions.size,
         sessions: Array.from(sessions.values()).map(s => s.getMetrics()),
       };
@@ -114,8 +114,8 @@ export function startProxy(config: Config) {
     const conn = new ChargerConnection(
       ws,
       chargePointId,
-      config.primaryUrl,
-      config.secondaryUrls,
+      config.primaryCsms,
+      config.secondaryCsms,
       config.queueDir ?? "./queue",
       protocol,
       authHeader,
@@ -132,8 +132,8 @@ export function startProxy(config: Config) {
   server.listen(config.port, () => {
     log.info("proxy listening", {
       port: config.port,
-      primary: maskUrl(config.primaryUrl),
-      secondaries: config.secondaryUrls.map(u => maskUrl(u)),
+      primary: maskUrl(config.primaryCsms.url),
+      secondaries: config.secondaryCsms.map(u => maskUrl(u.url)),
     });
   });
 

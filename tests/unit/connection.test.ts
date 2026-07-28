@@ -42,7 +42,7 @@ describe("ChargerConnection State & Accumulator", () => {
     const conn = new ChargerConnection(
       mockCharger,
       chargePointId,
-      "ws://localhost:8001",
+      { url: "ws://localhost:8001", appendChargePointId: true },
       [],
       testBaseDir,
       "ocpp1.6",
@@ -81,7 +81,7 @@ describe("ChargerConnection State & Accumulator", () => {
     const conn = new ChargerConnection(
       mockCharger,
       chargePointId,
-      "ws://localhost:8001",
+      { url: "ws://localhost:8001", appendChargePointId: true },
       [],
       testBaseDir,
       "ocpp1.6",
@@ -106,7 +106,7 @@ describe("ChargerConnection State & Accumulator", () => {
     const conn = new ChargerConnection(
       mockCharger,
       chargePointId,
-      "ws://localhost:8001",
+      { url: "ws://localhost:8001", appendChargePointId: true },
       [],
       testBaseDir,
       "ocpp1.6",
