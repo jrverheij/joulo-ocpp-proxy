@@ -4,7 +4,9 @@ import path from "path";
 import { createLogger } from "./logger";
 import { OCPP_MSG_CALL, OCPP_SUBPROTOCOLS } from "./types";
 import { PersistentQueue } from "./queue";
-import { forwardPing, forwardPong, rawDataToString } from "./websocket";
+import { forwardPing, forwardPong, rawDataToString } from "./utils/websocket";
+import { resolveCsmsUrl } from "./utils/url";
+import type { CsmsBackend } from "./config";
 
 /**
  * Manages the full lifecycle of a single charger connection:
@@ -18,11 +20,7 @@ const SECONDARY_KEEPALIVE_INTERVAL_MS = 30_000;
 const SECONDARY_PONG_TIMEOUT_MS = 90_000;
 const SECONDARY_MAX_QUEUE = 100;
 
-function buildUpstreamUrl(baseUrl: string, chargePointId: string): string {
-  const [path, query] = baseUrl.split("?");
-  const cleanPath = `${path.replace(/\/+$/, "")}/${chargePointId}`;
-  return query ? `${cleanPath}?${query}` : cleanPath;
-}
+// buildUpstreamUrl is resolved via resolveCsmsUrl
 function roundToThreeDecimals(val: number): number {
   return Math.round(val * 1000) / 1000;
 }
@@ -342,8 +340,8 @@ export class ChargerConnection {
   constructor(
     private readonly charger: WebSocket,
     private readonly chargePointId: string,
-    private readonly primaryUrl: string,
-    private readonly secondaryUrls: string[],
+    private readonly primaryBackend: CsmsBackend,
+    private readonly secondaryBackends: CsmsBackend[],
     private readonly queueDir: string,
     private readonly protocol: string,
     private readonly authHeader: string | undefined,
@@ -410,10 +408,12 @@ export class ChargerConnection {
 
   private setup() {
     this.loadSessionStateSync();
-    this.primary = this.connectPrimary(this.primaryUrl);
+    const primaryUrl = this.resolveUrl(this.primaryBackend);
+    this.primary = this.connectPrimary(primaryUrl);
 
-    for (const url of this.secondaryUrls) {
-      const diskQueue = new PersistentQueue(this.queueDir, this.chargePointId, url);
+    for (const backend of this.secondaryBackends) {
+      const url = this.resolveUrl(backend);
+      const diskQueue = new PersistentQueue(this.queueDir, this.chargePointId, backend.url);
       diskQueue.init().catch((err) => {
         this.log.error("Failed to initialize secondary disk queue", {
           url: maskUrl(url),
@@ -647,15 +647,13 @@ export class ChargerConnection {
     });
 
     this.log.info("session started", {
-      primary: maskUrl(this.primaryUrl),
-      secondaries: this.secondaryUrls.map(u => maskUrl(u)),
+      primary: maskUrl(primaryUrl),
+      secondaries: this.secondaries.map(sec => maskUrl(sec.url)),
       protocol: this.protocol,
     });
   }
 
-  private connectPrimary(baseUrl: string): WebSocket {
-    const url = buildUpstreamUrl(baseUrl, this.chargePointId);
-
+  private connectPrimary(url: string): WebSocket {
     const ws = new WebSocket(
       url,
       this.protocol ? [this.protocol] : OCPP_SUBPROTOCOLS,
@@ -717,10 +715,8 @@ export class ChargerConnection {
   }
 
   private connectSecondary(state: SecondaryState): WebSocket {
-    const url = buildUpstreamUrl(state.url, this.chargePointId);
-
     const ws = new WebSocket(
-      url,
+      state.url,
       this.protocol ? [this.protocol] : OCPP_SUBPROTOCOLS,
       {
         headers: this.buildHeaders(),
@@ -730,7 +726,7 @@ export class ChargerConnection {
     );
 
     ws.on("open", () => {
-      this.log.info("secondary connected", { url: maskUrl(url) });
+      this.log.info("secondary connected", { url: maskUrl(state.url) });
       state.lastPongAt = Date.now();
       this.flushSecondaryQueue(state, ws);
       this.startSecondaryKeepalive(state, ws);
@@ -743,7 +739,7 @@ export class ChargerConnection {
         return;
       }
       this.log.debugOcppFrame("secondary response (ignored)", raw, {
-        url: maskUrl(url),
+        url: maskUrl(state.url),
       });
     });
 
@@ -753,7 +749,7 @@ export class ChargerConnection {
 
     ws.on("close", (code, reason) => {
       this.log.warn("secondary disconnected", {
-        url: maskUrl(url),
+        url: maskUrl(state.url),
         code,
         reason: reason.toString(),
       });
@@ -762,7 +758,7 @@ export class ChargerConnection {
     });
 
     ws.on("error", (err) => {
-      this.log.error("secondary error", { url: maskUrl(url), error: err.message });
+      this.log.error("secondary error", { url: maskUrl(state.url), error: err.message });
     });
 
     return ws;
@@ -771,7 +767,7 @@ export class ChargerConnection {
   private async flushSecondaryQueue(state: SecondaryState, ws: WebSocket) {
     if (state.diskQueue.hasQueuedMessages()) {
       this.log.info("secondary flushing persistent queue from disk", {
-        url: maskUrl(buildUpstreamUrl(state.url, this.chargePointId)),
+        url: maskUrl(state.url),
         pendingCount: state.diskQueue.getQueueSize(),
       });
       await state.diskQueue.flush((data) => sendAsync(ws, data));
@@ -779,7 +775,7 @@ export class ChargerConnection {
 
     if (state.queue.length === 0) return;
     this.log.info("secondary flushing queued in-memory messages", {
-      url: maskUrl(buildUpstreamUrl(state.url, this.chargePointId)),
+      url: maskUrl(state.url),
       count: state.queue.length,
     });
     for (const msg of state.queue) {
@@ -799,7 +795,7 @@ export class ChargerConnection {
 
       if (Date.now() - state.lastPongAt > SECONDARY_PONG_TIMEOUT_MS) {
         this.log.warn("secondary pong timeout, forcing reconnect", {
-          url: maskUrl(buildUpstreamUrl(state.url, this.chargePointId)),
+          url: maskUrl(state.url),
         });
         try { ws.close(4000, "pong timeout"); } catch { /* */ }
         return;
@@ -825,7 +821,7 @@ export class ChargerConnection {
     if (state.reconnectTimer !== null) return;
 
     this.log.info("secondary reconnecting", {
-      url: maskUrl(buildUpstreamUrl(state.url, this.chargePointId)),
+      url: maskUrl(state.url),
       delayMs: SECONDARY_RECONNECT_DELAY_MS,
     });
 
@@ -844,6 +840,10 @@ export class ChargerConnection {
     return headers;
   }
 
+  private resolveUrl(backend: CsmsBackend): string {
+    return resolveCsmsUrl(backend, this.chargePointId);
+  }
+
   public getMetrics() {
     const activeSessionEnergy = this.initialEnergy !== null
       ? this.latestEnergy
@@ -852,14 +852,14 @@ export class ChargerConnection {
 
     return {
       chargePointId: maskString(this.chargePointId),
-      primaryUrl: maskUrlForVisitor(buildUpstreamUrl(this.primaryUrl, this.chargePointId)),
+      primaryUrl: maskUrlForVisitor(this.resolveUrl(this.primaryBackend)),
       connectedAt: this.connectedAt,
       uptimeSeconds: Math.floor((Date.now() - this.connectedAt) / 1000),
       ipAddress: maskIp(this.ipAddress),
       protocol: this.protocol || "none",
       primaryState: this.primary?.readyState === WebSocket.OPEN ? "Online" : "Offline",
       secondaryUrls: this.secondaries.map(sec => ({
-        url: maskUrlForVisitor(buildUpstreamUrl(sec.url, this.chargePointId)),
+        url: maskUrlForVisitor(sec.url),
         state: sec.ws?.readyState === WebSocket.OPEN ? "Online" : "Offline",
         queueSize: sec.queue.length + sec.diskQueue.getQueueSize(),
         diskQueueSize: sec.diskQueue.getQueueSize()
