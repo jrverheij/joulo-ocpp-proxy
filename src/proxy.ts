@@ -174,6 +174,11 @@ function getDashboardHtml(config: Config): string {
       --bg: #09080e;
       --card-bg: rgba(255, 255, 255, 0.04);
       --card-border: rgba(255, 255, 255, 0.08);
+      --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      --border-light: rgba(255, 255, 255, 0.05);
+      --row-bg: rgba(255, 255, 255, 0.02);
+      --row-border: rgba(255, 255, 255, 0.04);
+      --row-hover: rgba(255, 255, 255, 0.01);
       --text: #f3f4f6;
       --text-muted: #9ca3af;
       --primary: #8b5cf6;
@@ -182,6 +187,39 @@ function getDashboardHtml(config: Config): string {
       --success-glow: rgba(16, 185, 129, 0.25);
       --danger: #ef4444;
       --font: 'Outfit', sans-serif;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f8fafc;
+        --card-bg: rgba(255, 255, 255, 0.7);
+        --card-border: rgba(0, 0, 0, 0.08);
+        --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        --border-light: rgba(0, 0, 0, 0.05);
+        --row-bg: rgba(0, 0, 0, 0.01);
+        --row-border: rgba(0, 0, 0, 0.04);
+        --row-hover: rgba(0, 0, 0, 0.02);
+        --text: #0f172a;
+        --text-muted: #64748b;
+        --primary: #7c3aed;
+        --secondary: #0891b2;
+        --success: #059669;
+        --success-glow: rgba(5, 150, 105, 0.15);
+        --danger: #dc2626;
+      }
+      h1 {
+        background: linear-gradient(to right, #0f172a, #475569) !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+      }
+      .uptime-value {
+        background: linear-gradient(135deg, #0f172a, #7c3aed) !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+      }
+      .card:hover {
+        border-color: rgba(0, 0, 0, 0.15) !important;
+      }
     }
 
     * {
@@ -271,7 +309,7 @@ function getDashboardHtml(config: Config): string {
       -webkit-backdrop-filter: blur(16px);
       border-radius: 1.25rem;
       padding: 2rem;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      box-shadow: var(--card-shadow);
       transition: border-color 0.3s ease;
     }
 
@@ -303,7 +341,7 @@ function getDashboardHtml(config: Config): string {
       display: flex;
       gap: 2rem;
       margin-top: 1rem;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      border-top: 1px solid var(--border-light);
       padding-top: 1rem;
     }
 
@@ -329,8 +367,8 @@ function getDashboardHtml(config: Config): string {
       justify-content: space-between;
       align-items: center;
       padding: 1rem;
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid rgba(255, 255, 255, 0.04);
+      background: var(--row-bg);
+      border: 1px solid var(--row-border);
       border-radius: 0.75rem;
       margin-bottom: 0.75rem;
     }
@@ -398,7 +436,7 @@ function getDashboardHtml(config: Config): string {
       justify-content: space-between;
       align-items: center;
       padding: 1.25rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid var(--border-light);
       transition: background 0.2s ease;
     }
 
@@ -407,7 +445,7 @@ function getDashboardHtml(config: Config): string {
     }
 
     .charger-row:hover {
-      background: rgba(255, 255, 255, 0.01);
+      background: var(--row-hover);
     }
 
     .charger-meta {
@@ -420,7 +458,7 @@ function getDashboardHtml(config: Config): string {
       font-weight: 600;
       font-size: 1.1rem;
       letter-spacing: 0.05em;
-      color: #ffffff;
+      color: var(--text);
       display: flex;
       align-items: center;
       gap: 0.5rem;
@@ -497,7 +535,7 @@ function getDashboardHtml(config: Config): string {
               <span id="active-sessions-count" class="metric-value">0</span>
             </div>
             <div class="metric-item">
-              <span class="metric-label" style="cursor: help; border-bottom: 1px dotted rgba(255, 255, 255, 0.3);" title="Total processed WebSocket frames across all active connection legs (includes mirrored traffic and secondary backends responses)">Total Messages ℹ️</span>
+              <span class="metric-label" style="cursor: help; border-bottom: 1px dotted var(--text-muted);" title="Total processed WebSocket frames across all active connection legs (includes mirrored traffic and secondary backends responses)">Total Messages ℹ️</span>
               <span id="total-message-count" class="metric-value">0</span>
             </div>
           </div>
@@ -623,6 +661,16 @@ function getDashboardHtml(config: Config): string {
       gradientEnergy.addColorStop(0, 'rgba(6, 182, 212, 0.3)');
       gradientEnergy.addColorStop(1, 'rgba(6, 182, 212, 0)');
 
+      const getChartColors = () => {
+        const styles = getComputedStyle(document.documentElement);
+        return {
+          tickColor: styles.getPropertyValue('--text-muted').trim() || '#9ca3af',
+          gridColor: styles.getPropertyValue('--border-light').trim() || 'rgba(255, 255, 255, 0.05)'
+        };
+      };
+
+      const colors = getChartColors();
+
       powerChartInstance = new Chart(ctxPower, {
         type: 'line',
         data: {
@@ -644,8 +692,8 @@ function getDashboardHtml(config: Config): string {
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { grid: { display: false }, ticks: { color: '#9ca3af', font: { family: 'Outfit' } } },
-            y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#9ca3af', font: { family: 'Outfit' } } }
+            x: { grid: { display: false }, ticks: { color: colors.tickColor, font: { family: 'Outfit' } } },
+            y: { grid: { color: colors.gridColor }, ticks: { color: colors.tickColor, font: { family: 'Outfit' } } }
           }
         }
       });
@@ -671,10 +719,24 @@ function getDashboardHtml(config: Config): string {
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { grid: { display: false }, ticks: { color: '#9ca3af', font: { family: 'Outfit' } } },
-            y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#9ca3af', font: { family: 'Outfit' } } }
+            x: { grid: { display: false }, ticks: { color: colors.tickColor, font: { family: 'Outfit' } } },
+            y: { grid: { color: colors.gridColor }, ticks: { color: colors.tickColor, font: { family: 'Outfit' } } }
           }
         }
+      });
+
+      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+        const newColors = getChartColors();
+        powerChartInstance.options.scales.x.ticks.color = newColors.tickColor;
+        powerChartInstance.options.scales.y.ticks.color = newColors.tickColor;
+        powerChartInstance.options.scales.y.grid.color = newColors.gridColor;
+
+        energyChartInstance.options.scales.x.ticks.color = newColors.tickColor;
+        energyChartInstance.options.scales.y.ticks.color = newColors.tickColor;
+        energyChartInstance.options.scales.y.grid.color = newColors.gridColor;
+
+        powerChartInstance.update();
+        energyChartInstance.update();
       });
     }
 
