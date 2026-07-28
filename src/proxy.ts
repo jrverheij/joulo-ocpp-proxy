@@ -96,7 +96,7 @@ export function startProxy(config: Config) {
     }
 
     const protocol = ws.protocol;
-    const authHeader = req.headers["authorization"] as string | undefined;
+    const authHeader = req.headers.authorization;
     const ipAddress = (req.headers["x-forwarded-for"] as string || req.socket.remoteAddress || "Unknown").split(",")[0].trim();
 
     log.info("charger connected", {
@@ -116,7 +116,7 @@ export function startProxy(config: Config) {
       chargePointId,
       config.primaryUrl,
       config.secondaryUrls,
-      config.queueDir,
+      config.queueDir ?? "./queue",
       protocol,
       authHeader,
       ipAddress,
