@@ -60,7 +60,7 @@ async function connectWhenOpen(
   url: string,
   protocol: string,
   timeoutMs = 3000,
-  retryMs = 25
+  retryMs = 100
 ): Promise<WebSocket> {
   const deadline = Date.now() + timeoutMs;
   let lastError: Error | null = null;
@@ -68,15 +68,11 @@ async function connectWhenOpen(
   while (Date.now() < deadline) {
     const socket = new WebSocket(url, protocol);
     try {
-      await waitForOpen(socket, retryMs);
+      await waitForOpen(socket, 300);
       return socket;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      if (lastError.message.includes("ECONNREFUSED") || lastError.message.includes("connect")) {
-        await sleep(retryMs);
-        continue;
-      }
-      throw lastError;
+      await sleep(retryMs);
     }
   }
 
