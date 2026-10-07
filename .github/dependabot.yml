@@ -1,15 +1,39 @@
+# Set update schedule for GitHub Actions
 version: 2
 updates:
-  # Weekly security and dependency updates for npm packages
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-
-  # Weekly updates for GitHub Actions workflows
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 3
+    groups:
+      actions:
+        patterns:
+          - actions/*
+      docker:
+        patterns:
+          - docker/*
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      runtime:
+        patterns:
+          - ws
+      dev-common:
+        patterns:
+          - '@eslint/*'
+          - '@types/*'
+          - '@typescript-eslint/*'
+          - 'typescript-eslint'
+          - '@vitest/*'
+          - eslint
+          - typescript
+          - vitest
+    ignore:
+      - dependency-name: '@types/node'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: 'typescript'
+        update-types:
+          - version-update:semver-major
