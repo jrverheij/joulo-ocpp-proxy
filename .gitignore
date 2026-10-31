@@ -1,4 +1,7 @@
+node_modules
 node_modules/
+*.nosync
+*.nosync/
 dist/
 .env
 *.log
