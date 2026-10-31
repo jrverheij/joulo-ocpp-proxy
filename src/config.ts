@@ -80,7 +80,7 @@ export function loadConfig(): Config {
           .split(",")
           .map((a) => a.trim())
           .filter(Boolean)
-      : ["ChangeConfiguration", "UpdateFirmware"];
+      : [];
 
   return {
     port,

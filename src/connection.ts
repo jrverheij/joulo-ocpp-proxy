@@ -348,7 +348,7 @@ export class ChargerConnection {
     private readonly authHeader: string | undefined,
     private readonly ipAddress: string,
     private readonly endCallback?: () => void,
-    private readonly blockedActions: string[] = ["ChangeConfiguration", "UpdateFirmware"]
+    private readonly blockedActions: string[] = []
   ) {
     this.log = createLogger(maskString(chargePointId));
     this.setup();

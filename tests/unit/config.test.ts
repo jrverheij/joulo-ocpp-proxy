@@ -164,13 +164,10 @@ describe("loadConfig", () => {
     expect(config.port).toBe(9001);
   });
 
-  it("defaults blockedCsmsActions to ChangeConfiguration and UpdateFirmware", () => {
+  it("defaults blockedCsmsActions to empty array when unset", () => {
     vi.stubEnv("PRIMARY_CSMS_URL", "ws://primary.local/ocpp");
     const config = loadConfig();
-    expect(config.blockedCsmsActions).toEqual([
-      "ChangeConfiguration",
-      "UpdateFirmware",
-    ]);
+    expect(config.blockedCsmsActions).toEqual([]);
   });
 
   it("parses custom BLOCKED_CSMS_ACTIONS", () => {
