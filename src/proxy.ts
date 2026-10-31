@@ -120,7 +120,8 @@ export function startProxy(config: Config) {
       protocol,
       authHeader,
       ipAddress,
-      () => sessions.delete(chargePointId)
+      () => sessions.delete(chargePointId),
+      config.blockedCsmsActions
     );
     sessions.set(chargePointId, conn);
   });

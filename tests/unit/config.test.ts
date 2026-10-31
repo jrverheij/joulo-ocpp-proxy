@@ -18,6 +18,7 @@ describe("loadConfig", () => {
     "LOG_LEVEL",
     "LOG_DEBUG_MESSAGE_MAX_LENGTH",
     "PORT",
+    "BLOCKED_CSMS_ACTIONS",
   ] as const;
 
   beforeEach(() => {
@@ -163,24 +164,33 @@ describe("loadConfig", () => {
     expect(config.port).toBe(9001);
   });
 
-  it("parses append charge point id flags per csms config", () => {
+  it("defaults blockedCsmsActions to ChangeConfiguration and UpdateFirmware", () => {
     vi.stubEnv("PRIMARY_CSMS_URL", "ws://primary.local/ocpp");
-    vi.stubEnv("PRIMARY_CSMS_APPEND_CHARGE_POINT_ID", "false");
-    vi.stubEnv("SECONDARY_CSMS_APPEND_CHARGE_POINT_ID", "false");
-    vi.stubEnv(
-      "SECONDARY_CSMS_URLS",
-      "ws://secondary-a.local/ocpp,ws://secondary-b.local/ocpp"
-    );
-
     const config = loadConfig();
-
-    expect(config.primaryCsms).toEqual({
-      url: "ws://primary.local/ocpp",
-      appendChargePointId: false,
-    });
-    expect(config.secondaryCsms).toEqual([
-      { url: "ws://secondary-a.local/ocpp", appendChargePointId: false },
-      { url: "ws://secondary-b.local/ocpp", appendChargePointId: false },
+    expect(config.blockedCsmsActions).toEqual([
+      "ChangeConfiguration",
+      "UpdateFirmware",
     ]);
+  });
+
+  it("parses custom BLOCKED_CSMS_ACTIONS", () => {
+    vi.stubEnv("PRIMARY_CSMS_URL", "ws://primary.local/ocpp");
+    vi.stubEnv(
+      "BLOCKED_CSMS_ACTIONS",
+      "UnlockConnector, Reset,  ChangeConfiguration "
+    );
+    const config = loadConfig();
+    expect(config.blockedCsmsActions).toEqual([
+      "UnlockConnector",
+      "Reset",
+      "ChangeConfiguration",
+    ]);
+  });
+
+  it("allows disabling action blocking with empty BLOCKED_CSMS_ACTIONS", () => {
+    vi.stubEnv("PRIMARY_CSMS_URL", "ws://primary.local/ocpp");
+    vi.stubEnv("BLOCKED_CSMS_ACTIONS", "");
+    const config = loadConfig();
+    expect(config.blockedCsmsActions).toEqual([]);
   });
 });
