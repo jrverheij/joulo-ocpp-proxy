@@ -916,7 +916,7 @@ function getDashboardHtml(config: Config): string {
 
         const uptimeEl = document.getElementById("uptime");
         if (uptimeEl) {
-          uptimeEl.innerHTML = "<span class=\"header-uptime-dot\"></span><span>Uptime " + formatUptime(data.uptimeSeconds) + "</span>";
+          uptimeEl.innerHTML = "<span class='header-uptime-dot'></span><span>Uptime " + formatUptime(data.uptimeSeconds) + "</span>";
         }
 
         document.getElementById("active-sessions-count").textContent = data.activeSessionsCount;
@@ -929,8 +929,8 @@ function getDashboardHtml(config: Config): string {
         const chargersContainer = document.getElementById("chargers-container");
 
         if (data.sessions.length === 0) {
-          hostsContainer.innerHTML = "<div class=\"no-sessions\">Waiting for active charger session...</div>";
-          chargersContainer.innerHTML = "<div class=\"no-sessions\">No active charger sessions</div>";
+          hostsContainer.innerHTML = "<div class='no-sessions'>Waiting for active charger session...</div>";
+          chargersContainer.innerHTML = "<div class='no-sessions'>No active charger sessions</div>";
           
           powerChartInstance.data.labels = [];
           powerChartInstance.data.datasets[0].data = [];
@@ -944,21 +944,21 @@ function getDashboardHtml(config: Config): string {
           let chargersHtml = "";
 
           data.sessions.forEach(session => {
-            hostsHtml += "<div class=\"host-row\">" +
-              "<div class=\"host-info\">" +
-                "<span class=\"host-name\">Primary CSMS</span>" +
-                "<span class=\"host-url\">" + maskUrlForVisitor(session.primaryUrl) + "</span>" +
+            hostsHtml += "<div class='host-row'>" +
+              "<div class='host-info'>" +
+                "<span class='host-name'>Primary CSMS</span>" +
+                "<span class='host-url'>" + maskUrlForVisitor(session.primaryUrl) + "</span>" +
               "</div>" +
-              "<span class=\"badge " + session.primaryState.toLowerCase() + "\">" + session.primaryState + "</span>" +
+              "<span class='badge " + session.primaryState.toLowerCase() + "'>" + session.primaryState + "</span>" +
             "</div>";
 
             session.secondaryUrls.forEach((sec, idx) => {
-              hostsHtml += "<div class=\"host-row\">" +
-                "<div class=\"host-info\">" +
-                  "<span class=\"host-name\">Secondary CSMS [" + (idx + 1) + "]</span>" +
-                  "<span class=\"host-url\">" + maskUrlForVisitor(sec.url) + "</span>" +
+              hostsHtml += "<div class='host-row'>" +
+                "<div class='host-info'>" +
+                  "<span class='host-name'>Secondary CSMS [" + (idx + 1) + "]</span>" +
+                  "<span class='host-url'>" + maskUrlForVisitor(sec.url) + "</span>" +
                 "</div>" +
-                "<span class=\"badge " + sec.state.toLowerCase() + "\">" + sec.state + " (" + sec.queueSize + " q)</span>" +
+                "<span class='badge " + sec.state.toLowerCase() + "'>" + sec.state + " (" + sec.queueSize + " q)</span>" +
               "</div>";
             });
 
@@ -970,33 +970,33 @@ function getDashboardHtml(config: Config): string {
               const lastMsgTimeStr = formatDateTime(session.lastMessageAt);
               const lastMsgDiffSec = Math.floor((Date.now() - session.lastMessageAt) / 1000);
               const lastMsgDurationStr = formatUptime(lastMsgDiffSec);
-              lastMsgHtml = "<span class=\"charger-time\">Last frame: " + lastMsgTimeStr + " (" + lastMsgDurationStr + " ago)</span>";
+              lastMsgHtml = "<span class='charger-time'>Last frame: " + lastMsgTimeStr + " (" + lastMsgDurationStr + " ago)</span>";
             } else {
-              lastMsgHtml = "<span class=\"charger-time\">Last frame: none</span>";
+              lastMsgHtml = "<span class='charger-time'>Last frame: none</span>";
             }
 
             let typesHtml = "";
             if (session.messageTypes && Object.keys(session.messageTypes).length > 0) {
-              typesHtml += "<div style=\"margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.375rem; width: 100%;\">";
+              typesHtml += "<div style='margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.375rem; width: 100%;'>";
               for (const [type, count] of Object.entries(session.messageTypes)) {
-                typesHtml += "<span class=\"type-pill\">" +
+                typesHtml += "<span class='type-pill'>" +
                    type + ": <strong>" + count + "</strong>" +
                 "</span>";
               }
               typesHtml += "</div>";
             }
 
-            chargersHtml += "<div class=\"charger-card\">" +
-              "<div class=\"charger-header\">" +
-                "<div class=\"charger-meta\">" +
-                  "<span class=\"charger-tag\"><span class=\"status-dot\"></span>" + session.chargePointId + "</span>" +
-                  "<span class=\"charger-sub\">IP: " + session.ipAddress + " &middot; " + session.protocol + "</span>" +
-                  "<span class=\"charger-time\">Connected: " + connTimeStr + " (" + sessionDurationStr + " ago)</span>" +
+            chargersHtml += "<div class='charger-card'>" +
+              "<div class='charger-header'>" +
+                "<div class='charger-meta'>" +
+                  "<span class='charger-tag'><span class='status-dot'></span>" + session.chargePointId + "</span>" +
+                  "<span class='charger-sub'>IP: " + session.ipAddress + " &middot; " + session.protocol + "</span>" +
+                  "<span class='charger-time'>Connected: " + connTimeStr + " (" + sessionDurationStr + " ago)</span>" +
                   lastMsgHtml +
                 "</div>" +
-                "<div class=\"charger-readout\">" +
-                  "<span class=\"charger-power\">" + session.latestPower.toFixed(2) + " kW</span>" +
-                  "<span class=\"charger-energy\">" +
+                "<div class='charger-readout'>" +
+                  "<span class='charger-power'>" + session.latestPower.toFixed(2) + " kW</span>" +
+                  "<span class='charger-energy'>" +
                     "Session: " + session.latestEnergy.toFixed(2) + " kWh" +
                     (session.lifetimeChargedEnergyKwh !== undefined ? " &middot; Total: " + session.lifetimeChargedEnergyKwh.toFixed(2) + " kWh" : "") +
                     " &middot; " + session.messageCount + " frames" +
