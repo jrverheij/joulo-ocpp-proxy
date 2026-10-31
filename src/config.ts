@@ -18,6 +18,7 @@ export interface Config {
   secondaryCsms: CsmsBackend[];
   loggerConfig: LoggerConfig;
   queueDir: string;
+  blockedCsmsActions: string[];
 }
 
 export interface CsmsBackend {
@@ -72,6 +73,15 @@ export function loadConfig(): Config {
 
   const queueDir = process.env.QUEUE_DIR ?? "./queue";
 
+  const rawBlockedActions = process.env.BLOCKED_CSMS_ACTIONS;
+  const blockedCsmsActions: string[] =
+    rawBlockedActions !== undefined
+      ? rawBlockedActions
+          .split(",")
+          .map((a) => a.trim())
+          .filter(Boolean)
+      : ["ChangeConfiguration", "UpdateFirmware"];
+
   return {
     port,
     primaryCsms: {
@@ -84,5 +94,6 @@ export function loadConfig(): Config {
       debugMessageMaxLength,
     },
     queueDir,
+    blockedCsmsActions,
   };
 }

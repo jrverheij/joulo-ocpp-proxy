@@ -6,6 +6,7 @@ import { OCPP_MSG_CALL, OCPP_SUBPROTOCOLS } from "./types";
 import { PersistentQueue } from "./queue";
 import { forwardPing, forwardPong, rawDataToString } from "./utils/websocket";
 import { resolveCsmsUrl } from "./utils/url";
+import { filterCsmsCall } from "./utils/ocpp-filter";
 import type { CsmsBackend } from "./config";
 
 /**
@@ -346,7 +347,8 @@ export class ChargerConnection {
     private readonly protocol: string,
     private readonly authHeader: string | undefined,
     private readonly ipAddress: string,
-    private readonly endCallback?: () => void
+    private readonly endCallback?: () => void,
+    private readonly blockedActions: string[] = ["ChangeConfiguration", "UpdateFirmware"]
   ) {
     this.log = createLogger(maskString(chargePointId));
     this.setup();
@@ -685,6 +687,20 @@ export class ChargerConnection {
       const raw = rawDataToString(data);
       this.trackMessage(raw);
       this.log.debugOcppFrame("primary → charger", raw);
+
+      const filterResult = filterCsmsCall(raw, this.blockedActions);
+      if (filterResult.blocked) {
+        this.log.warn(`Blocked CSMS action from primary: ${filterResult.action}`, {
+          action: filterResult.action,
+          uniqueId: filterResult.uniqueId,
+        });
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(filterResult.response);
+          this.log.debugOcppFrame("proxy → primary (blocked action response)", filterResult.response);
+        }
+        return;
+      }
+
       if (this.charger.readyState === WebSocket.OPEN) {
         this.charger.send(raw);
       }
