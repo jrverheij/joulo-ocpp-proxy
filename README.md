@@ -4,7 +4,8 @@ A highly reliable, lightweight, and production-ready **OCPP WebSocket proxy** si
 
 This fork builds upon the original `joulo-nl/joulo-ocpp-proxy` and introduces enterprise-grade diagnostics, security, and stability:
 
-*   **Premium Diagnostics Dashboard (`/status`):** A beautiful glassmorphic real-time UI dashboard presenting active session statuses, live uptimes, message type breakdowns, and smooth animated graphs for power (kW) and energy (kWh).
+*   **Apple-Inspired Diagnostics Dashboard (`/status`):** A clean, responsive UI crafted according to Apple Human Interface Guidelines: SF Pro typography, dynamic light/dark mode adaptation, translucent blur materials, tabular figures, and smooth animated telemetry charts for power (kW) and energy (kWh).
+*   **Downstream OCPP Command Filtering (Stealth Rejection):** Protect EV chargers against unwanted downstream modifications from the primary CSMS (such as CPO overrides on charge current or unapproved over-the-air firmware pushes). The proxy stealthily intercepts blocked calls and responds directly with valid OCPP rejection frames (e.g. `[3, id, { "status": "Rejected" }]` for `ChangeConfiguration`), keeping the physical charger safe while satisfying the backend. Fully configurable via `BLOCKED_CSMS_ACTIONS`.
 *   **Version & SHA Hash Display:** Shows the deployed Git commit SHA directly on the dashboard header and via `/api/status` to easily track running software versions.
 *   **Strict GDPR Data Privacy & Masking:** Dynamic masking of charge point IDs (e.g. `07*****72`), query parameters and auth tokens (e.g. `auth=z8*****Z2`), and full IP address anonymization (`80.61.x.x`) across all container logs and API endpoints.
 *   **Visitor Hostname Masking:** An additional client-side protection layer on `/status` that obscures domain hostnames and strips out security query tokens (`wss://oc***p.jo***o.***/07*****72?auth=***`) to prevent unauthorized dashboard visitors from obtaining network metadata, while preserving complete server logs for debugging.
@@ -46,10 +47,12 @@ The **primary CSMS** has full bidirectional control. Any number of **secondary b
 ## Advanced Features
 
 ### 1. Real-Time Diagnostics UI (`/status`)
-Accessible directly at `/status` (e.g., `https://ocpp.cloud.citroentje.com/status`), sitting on a dark, glassmorphic layout:
-*   **Rolling Telemetry Graphs:** High-fidelity animated Chart.js graphs mapping the last 100 MeterValues points for **Power Consumption (kW)** and **Energy Consumption (kWh)**.
-*   **Timezone-Aware:** Millisecond timestamps are mapped on the client-side, displaying graph coordinates in the visitor's local browser timezone.
-*   **Message Type Breakdown:** Real-time counter pills showing a live count of processed OCPP commands (e.g. `Heartbeat`, `MeterValues`, `StatusNotification`, `TriggerMessage`, `BootNotification`).
+Accessible directly at `/status` (e.g., `https://ocpp.cloud.citroentje.com/status`), built with an Apple-inspired Cupertino aesthetic:
+*   **Adaptive Light & Dark Modes:** Automatically reflects system appearance (`prefers-color-scheme`) with crisp San Francisco typography, subtle translucent material blurs (`backdrop-filter`), and accessible Apple system color accents.
+*   **Rolling Telemetry Graphs:** High-fidelity animated Chart.js graphs mapping the last 100 MeterValues points for **Power Consumption (kW)** and **Energy Consumption (kWh)** with graceful empty-state transitions.
+*   **Timezone-Aware:** Millisecond timestamps are mapped on the client-side, displaying graph coordinates in the visitor's local browser timezone with `tabular-nums` alignment.
+*   **Message Type Breakdown:** Real-time pills showing a live count of processed OCPP commands (e.g. `Heartbeat`, `MeterValues`, `StatusNotification`, `TriggerMessage`, `BootNotification`).
+*   **Accessibility First:** Honors user accessibility settings including `prefers-reduced-motion` and `prefers-reduced-transparency`.
 
 ### 2. GDPR-Compliant Data Security
 *   **Logs:** System logs are stripped of raw credentials and IDs (logs use masked values like `07*****72` and `auth=z8*****Z2`).
@@ -63,6 +66,15 @@ Accessible directly at `/status` (e.g., `https://ocpp.cloud.citroentje.com/statu
 *   **Lifetime kWh Accumulator:** Accumulates and rounds total session energy to 3 decimal places (1 Wh precision), committing completed transaction totals to a persistent lifetime metric.
 *   **WebSocket Keepalive:** Sends active WebSocket pings every 30s and forces reconnects if a pong is not received within 90s (mitigating silent TCP dead locks).
 
+### 4. Downstream OCPP Command Filtering (Stealth Rejection)
+Prevents external charge point operators (Primary CSMS) from executing unauthorized downstream modifications on the physical charger (e.g. limiting maximum charge amperage or flashing unvetted firmware).
+*   **Stealth Responses:** The proxy intercepts blocked `CALL` frames (`[2, id, action, payload]`) from the CSMS and immediately replies with standard OCPP responses without forwarding anything to the charger:
+    *   `ChangeConfiguration` $\rightarrow$ `[3, id, { "status": "Rejected" }]`
+    *   `UpdateFirmware` $\rightarrow$ `[4, id, "NotSupported", "Firmware update is disabled by local policy", {}]`
+    *   *Other blocked actions* $\rightarrow$ `[3, id, { "status": "Rejected" }]`
+*   **Seamless to CPO:** The CSMS receives an RFC-compliant OCPP response as if the charge point hardware itself rejected the command.
+*   **Explicit Policy:** Filtering defaults to empty (`[]`) so no commands are blocked unless explicitly configured in `BLOCKED_CSMS_ACTIONS`.
+
 ---
 
 ## Configuration
@@ -71,10 +83,14 @@ All configuration is managed via environment variables:
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `PORT` | No | `9000` | Port the proxy server listens on |
 | `PRIMARY_CSMS_URL` | **Yes** | — | WebSocket URL of your primary CSMS |
 | `SECONDARY_CSMS_URLS` | No | — | Comma-separated list of secondary CSMS URLs |
+| `PRIMARY_CSMS_APPEND_CHARGE_POINT_ID` | No | `true` | Automatically append charge point ID to primary CSMS URL |
+| `SECONDARY_CSMS_APPEND_CHARGE_POINT_ID` | No | `true` | Automatically append charge point ID to secondary CSMS URLs |
+| `BLOCKED_CSMS_ACTIONS` | No | `""` (empty) | Comma-separated list of downstream OCPP actions to block from primary CSMS (e.g. `ChangeConfiguration,UpdateFirmware`) |
+| `PORT` | No | `9000` | Port the proxy server listens on |
 | `LOG_LEVEL` | No | `info` | `debug`, `info`, `warn`, or `error` |
+| `LOG_DEBUG_MESSAGE_MAX_LENGTH` | No | `120` | Max character length for OCPP payloads in debug logs |
 | `QUEUE_DIR` | No | — | Path to disk directory for persistent queues and state |
 
 ---
