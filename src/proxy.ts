@@ -164,67 +164,65 @@ function getDashboardHtml(config: Config): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OCPP Proxy Dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <title>OCPP Proxy</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
-      --bg: #09080e;
-      --card-bg: rgba(255, 255, 255, 0.04);
-      --card-border: rgba(255, 255, 255, 0.08);
-      --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-      --border-light: rgba(255, 255, 255, 0.05);
-      --row-bg: rgba(255, 255, 255, 0.02);
-      --row-border: rgba(255, 255, 255, 0.04);
-      --row-hover: rgba(255, 255, 255, 0.01);
-      --text: #f3f4f6;
-      --text-muted: #9ca3af;
-      --primary: #8b5cf6;
-      --secondary: #06b6d4;
-      --success: #10b981;
-      --success-glow: rgba(16, 185, 129, 0.25);
-      --danger: #ef4444;
-      --font: 'Outfit', sans-serif;
+      /* Apple Dark Palette (Default) */
+      --canvas: #000000;
+      --card-bg: rgba(28, 28, 30, 0.75);
+      --card-solid-bg: #1c1c1e;
+      --card-border: rgba(255, 255, 255, 0.12);
+      --card-border-top: rgba(255, 255, 255, 0.22);
+      --card-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+      --row-bg: rgba(255, 255, 255, 0.04);
+      --row-border: rgba(255, 255, 255, 0.06);
+      --row-hover: rgba(255, 255, 255, 0.08);
+      --hairline: rgba(255, 255, 255, 0.08);
+
+      --text-primary: #f5f5f7;
+      --text-secondary: #86868b;
+      --text-tertiary: #48484a;
+
+      --system-blue: #0a84ff;
+      --system-blue-subtle: rgba(10, 132, 255, 0.15);
+      --system-green: #30d158;
+      --system-green-subtle: rgba(48, 209, 88, 0.15);
+      --system-red: #ff453a;
+      --system-red-subtle: rgba(255, 69, 58, 0.15);
+      --system-orange: #ff9f0a;
+
+      --font-system: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+      --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+
+      --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     @media (prefers-color-scheme: light) {
       :root {
-        --bg: #f8fafc;
-        --card-bg: rgba(255, 255, 255, 0.7);
+        /* Apple Light Palette */
+        --canvas: #f5f5f7;
+        --card-bg: rgba(255, 255, 255, 0.82);
+        --card-solid-bg: #ffffff;
         --card-border: rgba(0, 0, 0, 0.08);
-        --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-        --border-light: rgba(0, 0, 0, 0.05);
-        --row-bg: rgba(0, 0, 0, 0.01);
-        --row-border: rgba(0, 0, 0, 0.04);
-        --row-hover: rgba(0, 0, 0, 0.02);
-        --text: #0f172a;
-        --text-muted: #64748b;
-        --primary: #7c3aed;
-        --secondary: #0891b2;
-        --success: #059669;
-        --success-glow: rgba(5, 150, 105, 0.15);
-        --danger: #dc2626;
-      }
-      h1 {
-        background: linear-gradient(to right, #0f172a, #475569) !important;
-        -webkit-background-clip: text !important;
-        -webkit-text-fill-color: transparent !important;
-      }
-      .uptime-value {
-        background: linear-gradient(135deg, #0f172a, #7c3aed) !important;
-        -webkit-background-clip: text !important;
-        -webkit-text-fill-color: transparent !important;
-      }
-      .card:hover {
-        border-color: rgba(0, 0, 0, 0.15) !important;
-      }
-      .tooltip .tooltiptext {
-        background-color: #ffffff !important;
-        color: #1e293b !important;
-        border: 1px solid rgba(0, 0, 0, 0.1) !important;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+        --card-border-top: rgba(255, 255, 255, 0.9);
+        --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+        --row-bg: rgba(0, 0, 0, 0.03);
+        --row-border: rgba(0, 0, 0, 0.05);
+        --row-hover: rgba(0, 0, 0, 0.06);
+        --hairline: rgba(0, 0, 0, 0.06);
+
+        --text-primary: #1d1d1f;
+        --text-secondary: #6e6e73;
+        --text-tertiary: #aeaeb2;
+
+        --system-blue: #0071e3;
+        --system-blue-subtle: rgba(0, 113, 227, 0.1);
+        --system-green: #34c759;
+        --system-green-subtle: rgba(52, 199, 89, 0.1);
+        --system-red: #ff3b30;
+        --system-red-subtle: rgba(255, 59, 48, 0.1);
+        --system-orange: #ff9500;
       }
     }
 
@@ -235,19 +233,17 @@ function getDashboardHtml(config: Config): string {
     }
 
     body {
-      background-color: var(--bg);
-      background-image: 
-        radial-gradient(at 10% 10%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
-        radial-gradient(at 90% 90%, rgba(6, 182, 212, 0.15) 0px, transparent 50%);
-      background-attachment: fixed;
-      color: var(--text);
-      font-family: var(--font);
+      background-color: var(--canvas);
+      color: var(--text-primary);
+      font-family: var(--font-system);
       min-height: 100vh;
-      padding: 2rem;
+      padding: 2.5rem 1.5rem;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
     .container {
-      max-width: 1400px;
+      max-width: 1280px;
       margin: 0 auto;
     }
 
@@ -256,42 +252,79 @@ function getDashboardHtml(config: Config): string {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 2.5rem;
+      margin-bottom: 2rem;
+      padding: 0 0.25rem;
     }
 
-    .logo-container {
+    .header-branding {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.875rem;
     }
 
-    .logo-icon {
-      width: 2.5rem;
-      height: 2.5rem;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      border-radius: 50%;
+    .app-icon {
+      width: 44px;
+      height: 44px;
+      background: var(--system-blue-subtle);
+      color: var(--system-blue);
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 700;
-      font-size: 1.25rem;
-      box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+      font-size: 1.375rem;
+      border: 1px solid var(--card-border);
+    }
+
+    .title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.125rem;
     }
 
     h1 {
-      font-size: 1.75rem;
+      font-size: 1.5rem;
       font-weight: 600;
-      letter-spacing: -0.025em;
-      background: linear-gradient(to right, #ffffff, #d1d5db);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.022em;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .version-tag {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      letter-spacing: 0.02em;
+    }
+
+    .header-uptime {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--card-bg);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid var(--card-border);
+      border-radius: 9999px;
+      padding: 0.4rem 0.875rem;
+      font-size: 0.8125rem;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      color: var(--text-secondary);
+      box-shadow: var(--card-shadow);
+    }
+
+    .header-uptime-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--system-green);
     }
 
     /* Grid Layout */
     .grid {
       display: grid;
-      grid-template-columns: 1fr 1.2fr;
-      gap: 2rem;
+      grid-template-columns: 1fr 1.25fr;
+      gap: 1.5rem;
     }
 
     @media (max-width: 1024px) {
@@ -302,151 +335,167 @@ function getDashboardHtml(config: Config): string {
 
     .column {
       display: flex;
-      flex-column: column;
       flex-direction: column;
-      gap: 2rem;
+      gap: 1.5rem;
     }
 
-    /* Cards */
+    /* Materials & Depth (§12) */
     .card {
       background: var(--card-bg);
+      backdrop-filter: blur(25px) saturate(190%);
+      -webkit-backdrop-filter: blur(25px) saturate(190%);
       border: 1px solid var(--card-border);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-radius: 1.25rem;
-      padding: 2rem;
+      border-top-color: var(--card-border-top);
+      border-radius: 18px;
+      padding: 1.5rem;
       box-shadow: var(--card-shadow);
-      transition: border-color 0.3s ease;
+      transition: transform 0.35s var(--ease-spring), box-shadow 0.35s var(--ease-spring);
     }
 
     .card:hover {
-      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
     }
 
     h2 {
-      font-size: 1.2rem;
-      font-weight: 500;
-      color: var(--text-muted);
-      margin-bottom: 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    /* Uptime & Global Metrics */
-    .uptime-value {
-      font-size: 2.25rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, #ffffff, #a78bfa);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 1rem;
-    }
-
-    .metrics-row {
-      display: flex;
-      gap: 2rem;
-      margin-top: 1rem;
-      border-top: 1px solid var(--border-light);
-      padding-top: 1rem;
-    }
-
-    .metric-item {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .metric-label {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-
-    /* Tooltip container */
-    .tooltip {
-      position: relative;
-      display: inline-block;
-    }
-
-    /* Tooltip text */
-    .tooltip .tooltiptext {
-      visibility: hidden;
-      width: 260px;
-      background-color: #111827;
-      color: #f3f4f6;
-      text-align: center;
-      border-radius: 0.5rem;
-      padding: 0.75rem;
-      position: absolute;
-      z-index: 100;
-      bottom: 125%; /* Position above the text */
-      left: 50%;
-      margin-left: -130px;
-      opacity: 0;
-      transition: opacity 0.2s ease, transform 0.2s ease;
-      transform: translateY(5px);
       font-size: 0.75rem;
-      font-weight: 400;
-      line-height: 1.35;
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      pointer-events: none;
-      white-space: normal;
-    }
-
-    /* Show the tooltip text when hovering */
-    .tooltip:hover .tooltiptext {
-      visibility: visible;
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .metric-value {
-      font-size: 1.25rem;
       font-weight: 600;
-      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
-    /* Hosts */
-    .host-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem;
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .metric-cell {
       background: var(--row-bg);
       border: 1px solid var(--row-border);
-      border-radius: 0.75rem;
-      margin-bottom: 0.75rem;
-    }
-
-    .host-info {
+      border-radius: 12px;
+      padding: 1rem;
       display: flex;
       flex-direction: column;
       gap: 0.25rem;
     }
 
+    .metric-label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.02em;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .metric-value {
+      font-size: 1.875rem;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.15;
+    }
+
+    /* Tooltips (§16) */
+    .tooltip {
+      position: relative;
+      cursor: help;
+    }
+
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      opacity: 0;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      width: 250px;
+      padding: 0.625rem 0.8125rem;
+      background: var(--card-solid-bg);
+      color: var(--text-primary);
+      font-size: 0.75rem;
+      line-height: 1.35;
+      font-weight: 400;
+      letter-spacing: normal;
+      text-transform: none;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      pointer-events: none;
+      z-index: 100;
+      transition: opacity 0.2s ease, transform 0.2s var(--ease-spring);
+    }
+
+    .tooltip:hover .tooltiptext {
+      visibility: visible;
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Hosts list */
+    .host-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.875rem 1rem;
+      background: var(--row-bg);
+      border: 1px solid var(--row-border);
+      border-radius: 12px;
+      margin-bottom: 0.625rem;
+      transition: background 0.2s ease;
+    }
+
+    .host-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .host-row:hover {
+      background: var(--row-hover);
+    }
+
+    .host-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      min-width: 0;
+    }
+
     .host-name {
       font-weight: 500;
-      font-size: 1rem;
+      font-size: 0.875rem;
+      color: var(--text-primary);
     }
 
     .host-url {
-      font-size: 0.8rem;
-      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
       word-break: break-all;
     }
 
+    /* Badges (§16) */
     .badge {
       display: inline-flex;
       align-items: center;
-      padding: 0.35rem 0.85rem;
+      gap: 0.375rem;
+      padding: 0.25rem 0.625rem;
       border-radius: 9999px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      gap: 0.4rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
     }
 
     .badge::before {
-      content: '';
+      content: "";
       display: inline-block;
       width: 6px;
       height: 6px;
@@ -454,43 +503,44 @@ function getDashboardHtml(config: Config): string {
     }
 
     .badge.online {
-      background: rgba(16, 185, 129, 0.1);
-      color: var(--success);
-      border: 1px solid rgba(16, 185, 129, 0.2);
-      box-shadow: 0 0 10px var(--success-glow);
+      background: var(--system-green-subtle);
+      color: var(--system-green);
     }
 
     .badge.online::before {
-      background: var(--success);
-      box-shadow: 0 0 8px var(--success);
+      background: var(--system-green);
     }
 
     .badge.offline {
-      background: rgba(239, 68, 68, 0.1);
-      color: var(--danger);
-      border: 1px solid rgba(239, 68, 68, 0.2);
+      background: var(--system-red-subtle);
+      color: var(--system-red);
     }
 
     .badge.offline::before {
-      background: var(--danger);
+      background: var(--system-red);
     }
 
-    /* Active Chargers */
-    .charger-row {
+    /* Chargers */
+    .charger-card {
+      background: var(--row-bg);
+      border: 1px solid var(--row-border);
+      border-radius: 14px;
+      padding: 1.125rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.875rem;
+    }
+
+    .charger-card:last-child {
+      margin-bottom: 0;
+    }
+
+    .charger-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      padding: 1.25rem;
-      border-bottom: 1px solid var(--border-light);
-      transition: background 0.2s ease;
-    }
-
-    .charger-row:last-child {
-      border-bottom: none;
-    }
-
-    .charger-row:hover {
-      background: var(--row-hover);
+      align-items: flex-start;
+      gap: 1rem;
     }
 
     .charger-meta {
@@ -501,108 +551,154 @@ function getDashboardHtml(config: Config): string {
 
     .charger-tag {
       font-weight: 600;
-      font-size: 1.1rem;
-      letter-spacing: 0.05em;
-      color: var(--text);
-      display: flex;
+      font-size: 1rem;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+      display: inline-flex;
       align-items: center;
       gap: 0.5rem;
     }
 
-    .charger-sub {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-
-    .pulse {
-      width: 8px;
-      height: 8px;
-      background: var(--success);
+    .status-dot {
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
-      box-shadow: 0 0 0 0 var(--success-glow);
-      animation: pulse 1.5s infinite;
+      background: var(--system-green);
+      display: inline-block;
     }
 
-    @keyframes pulse {
-      0% {
-        transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-      }
-      70% {
-        transform: scale(1);
-        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
-      }
-      100% {
-        transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-      }
+    .charger-sub {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .charger-time {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .charger-readout {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      gap: 0.125rem;
+    }
+
+    .charger-power {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--system-blue);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+
+    .charger-energy {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .type-pill {
+      font-size: 0.6875rem;
+      font-family: var(--font-mono);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .type-pill strong {
+      color: var(--text-primary);
+      font-weight: 600;
     }
 
     .chart-container {
       position: relative;
       width: 100%;
-      height: 250px;
-      margin-top: 1rem;
+      height: 220px;
     }
 
     .no-sessions {
-      color: var(--text-muted);
+      color: var(--text-secondary);
       text-align: center;
-      padding: 3rem 0;
-      font-size: 1rem;
-      font-style: italic;
+      padding: 2.5rem 0;
+      font-size: 0.875rem;
+    }
+
+    /* Accessibility (§14) */
+    @media (prefers-reduced-motion: reduce) {
+      *, .card, .tooltip .tooltiptext {
+        transition: none !important;
+        transform: none !important;
+        animation: none !important;
+      }
+    }
+
+    @media (prefers-reduced-transparency: reduce) {
+      .card, header .header-uptime {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        background: var(--card-solid-bg) !important;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <div class="logo-container">
-        <div class="logo-icon">🎛️</div>
-        <div>
-          <h1>OCPP Proxy Status</h1>
-          <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace; margin-top: 0.15rem;">Version: ${version.sha}</div>
+      <div class="header-branding">
+        <div class="app-icon">⚡</div>
+        <div class="title-group">
+          <h1>OCPP Proxy</h1>
+          <span class="version-tag">Build ${version.sha}</span>
         </div>
       </div>
-      <div id="uptime" class="uptime-value">Uptime: --</div>
+      <div id="uptime" class="header-uptime">
+        <span class="header-uptime-dot"></span>
+        <span>Uptime: --</span>
+      </div>
     </header>
 
     <div class="grid">
-      <!-- Left Column: Diagnostics -->
+      <!-- Left Column: Metrics & Hosts -->
       <div class="column">
-        <!-- Global Stats -->
+        <!-- Global Metrics -->
         <div class="card">
-          <h2>Global Proxy Metrics</h2>
-          <div class="uptime-value" style="font-size: 1.75rem; margin-bottom: 0;">Stateless Monitor</div>
-          <div class="metrics-row">
-            <div class="metric-item">
+          <h2>Proxy Telemetry</h2>
+          <div class="metrics-grid">
+            <div class="metric-cell">
               <span class="metric-label">Active Sessions</span>
               <span id="active-sessions-count" class="metric-value">0</span>
             </div>
-            <div class="metric-item">
-              <span class="metric-label tooltip" style="cursor: help; border-bottom: 1px dotted var(--text-muted);">
-                Total Messages ℹ️
-                <span class="tooltiptext">Total processed WebSocket frames across all active connection legs (includes mirrored traffic and secondary backends responses).</span>
+            <div class="metric-cell">
+              <span class="metric-label tooltip">
+                Total Frames ⓘ
+                <span class="tooltiptext">Processed WebSocket frames across all active sessions, including mirrored upstream traffic.</span>
               </span>
               <span id="total-message-count" class="metric-value">0</span>
             </div>
           </div>
         </div>
 
-        <!-- Host status -->
+        <!-- Upstream CSMS Connections -->
         <div class="card">
-          <h2>Upstream CSMS Connections</h2>
+          <h2>Upstream CSMS Backends</h2>
           <div id="hosts-container">
             <div class="no-sessions">Waiting for active charger session...</div>
           </div>
         </div>
       </div>
 
-      <!-- Right Column: Graphs & Sessions -->
+      <!-- Right Column: Charts & Chargers -->
       <div class="column">
         <!-- Power Graph Card -->
         <div class="card">
-          <h2>Power Consumption (kW)</h2>
+          <h2>Active Power (kW)</h2>
           <div class="chart-container">
             <canvas id="powerChart"></canvas>
           </div>
@@ -610,7 +706,7 @@ function getDashboardHtml(config: Config): string {
 
         <!-- Energy Graph Card -->
         <div class="card">
-          <h2>Energy Consumption (kWh)</h2>
+          <h2>Delivered Energy (kWh)</h2>
           <div class="chart-container">
             <canvas id="energyChart"></canvas>
           </div>
@@ -618,7 +714,7 @@ function getDashboardHtml(config: Config): string {
 
         <!-- Active Chargers Card -->
         <div class="card">
-          <h2>Active Charger Details</h2>
+          <h2>Connected Charge Points</h2>
           <div id="chargers-container">
             <div class="no-sessions">No active charger sessions</div>
           </div>
@@ -634,151 +730,176 @@ function getDashboardHtml(config: Config): string {
     function formatDateTime(timeMs) {
       const date = new Date(timeMs);
       const yyyy = date.getFullYear();
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const dd = String(date.getDate()).padStart(2, '0');
-      const hh = String(date.getHours()).padStart(2, '0');
-      const min = String(date.getMinutes()).padStart(2, '0');
-      const ss = String(date.getSeconds()).padStart(2, '0');
-      return yyyy + '-' + mm + '-' + dd + ' ' + hh + ':' + min + ':' + ss;
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      const hh = String(date.getHours()).padStart(2, "0");
+      const min = String(date.getMinutes()).padStart(2, "0");
+      const ss = String(date.getSeconds()).padStart(2, "0");
+      return yyyy + "-" + mm + "-" + dd + " " + hh + ":" + min + ":" + ss;
     }
 
     function formatUptime(seconds) {
-      const d = Math.floor(seconds / (3600*24));
-      const h = Math.floor((seconds % (3600*24)) / 3600);
+      const d = Math.floor(seconds / 86400);
+      const h = Math.floor((seconds % 86400) / 3600);
       const m = Math.floor((seconds % 3600) / 60);
       const s = seconds % 60;
       
       const parts = [];
-      if (d > 0) parts.push(d + 'd');
-      if (h > 0) parts.push(h + 'h');
-      if (m > 0) parts.push(m + 'm');
-      parts.push(s + 's');
-      return 'Uptime: ' + parts.join(' ');
+      if (d > 0) parts.push(d + "d");
+      if (h > 0) parts.push(h + "h");
+      if (m > 0) parts.push(m + "m");
+      parts.push(s + "s");
+      return parts.join(" ");
     }
 
     function maskUrlForVisitor(url) {
-      if (!url) return '';
+      if (!url) return "";
       try {
-        const parts = url.split('?');
+        const parts = url.split("?");
         const pathPart = parts[0];
         const queryPart = parts[1];
         
-        let protocol = '';
-        if (pathPart.includes('://')) {
-          protocol = pathPart.split('://')[0] + '://';
+        let protocol = "";
+        if (pathPart.includes("://")) {
+          protocol = pathPart.split("://")[0] + "://";
         }
         const pathWithoutProtocol = protocol ? pathPart.slice(protocol.length) : pathPart;
         
-        const segments = pathWithoutProtocol.split('/');
+        const segments = pathWithoutProtocol.split("/");
         const host = segments[0];
         
-        const hostParts = host.split('.');
+        const hostParts = host.split(".");
         const maskedHostParts = hostParts.map(part => {
-          if (part.length <= 3) return '***';
-          return part.slice(0, 2) + '***' + part.slice(-1);
+          if (part.length <= 3) return "***";
+          return part.slice(0, 2) + "***" + part.slice(-1);
         });
-        const maskedHost = maskedHostParts.join('.');
+        const maskedHost = maskedHostParts.join(".");
         
         segments[0] = maskedHost;
-        const maskedPath = protocol + segments.join('/');
+        const maskedPath = protocol + segments.join("/");
         
         if (!queryPart) return maskedPath;
         
-        const params = queryPart.split('&').map(param => {
-          const [key, value] = param.split('=');
+        const params = queryPart.split("&").map(param => {
+          const [key, value] = param.split("=");
           if (key && value) {
-            return key + '=***';
+            return key + "=***";
           }
           return param;
         });
-        return maskedPath + '?' + params.join('&');
+        return maskedPath + "?" + params.join("&");
       } catch (err) {
-        return '***';
+        return "***";
       }
     }
 
-    function initCharts() {
-      const ctxPower = document.getElementById('powerChart').getContext('2d');
-      const ctxEnergy = document.getElementById('energyChart').getContext('2d');
-
-      const gradientPower = ctxPower.createLinearGradient(0, 0, 0, 200);
-      gradientPower.addColorStop(0, 'rgba(139, 92, 246, 0.3)');
-      gradientPower.addColorStop(1, 'rgba(139, 92, 246, 0)');
-
-      const gradientEnergy = ctxEnergy.createLinearGradient(0, 0, 0, 200);
-      gradientEnergy.addColorStop(0, 'rgba(6, 182, 212, 0.3)');
-      gradientEnergy.addColorStop(1, 'rgba(6, 182, 212, 0)');
-
-      const getChartColors = () => {
-        const styles = getComputedStyle(document.documentElement);
-        return {
-          tickColor: styles.getPropertyValue('--text-muted').trim() || '#9ca3af',
-          gridColor: styles.getPropertyValue('--border-light').trim() || 'rgba(255, 255, 255, 0.05)'
-        };
+    function getChartColors() {
+      const styles = getComputedStyle(document.documentElement);
+      return {
+        tickColor: styles.getPropertyValue("--text-secondary").trim() || "#86868b",
+        gridColor: styles.getPropertyValue("--hairline").trim() || "rgba(255, 255, 255, 0.08)",
+        blue: styles.getPropertyValue("--system-blue").trim() || "#0a84ff",
+        green: styles.getPropertyValue("--system-green").trim() || "#30d158"
       };
+    }
 
+    function initCharts() {
+      const ctxPower = document.getElementById("powerChart").getContext("2d");
+      const ctxEnergy = document.getElementById("energyChart").getContext("2d");
       const colors = getChartColors();
 
       powerChartInstance = new Chart(ctxPower, {
-        type: 'line',
+        type: "line",
         data: {
           labels: [],
           datasets: [{
-            label: 'Active Power (kW)',
+            label: "Power (kW)",
             data: [],
-            borderColor: '#8b5cf6',
-            backgroundColor: gradientPower,
-            borderWidth: 3,
+            borderColor: colors.blue,
+            backgroundColor: "rgba(10, 132, 255, 0.08)",
+            borderWidth: 2,
             fill: true,
-            tension: 0.4,
-            pointRadius: 2,
-            pointHoverRadius: 6
+            tension: 0.3,
+            pointRadius: 0,
+            pointHoverRadius: 4
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: "rgba(28, 28, 30, 0.9)",
+              titleFont: { family: "-apple-system, system-ui, sans-serif", size: 11 },
+              bodyFont: { family: "-apple-system, system-ui, sans-serif", size: 12 },
+              cornerRadius: 8,
+              padding: 8
+            }
+          },
           scales: {
-            x: { grid: { display: false }, ticks: { color: colors.tickColor, font: { family: 'Outfit' } } },
-            y: { grid: { color: colors.gridColor }, ticks: { color: colors.tickColor, font: { family: 'Outfit' } } }
+            x: {
+              grid: { display: false },
+              ticks: { color: colors.tickColor, font: { family: "-apple-system, system-ui, sans-serif", size: 10 } }
+            },
+            y: {
+              grid: { color: colors.gridColor },
+              ticks: { color: colors.tickColor, font: { family: "-apple-system, system-ui, sans-serif", size: 10 } }
+            }
           }
         }
       });
 
       energyChartInstance = new Chart(ctxEnergy, {
-        type: 'line',
+        type: "line",
         data: {
           labels: [],
           datasets: [{
-            label: 'Energy (kWh)',
+            label: "Energy (kWh)",
             data: [],
-            borderColor: '#06b6d4',
-            backgroundColor: gradientEnergy,
-            borderWidth: 3,
+            borderColor: colors.green,
+            backgroundColor: "rgba(48, 209, 88, 0.08)",
+            borderWidth: 2,
             fill: true,
-            tension: 0.4,
-            pointRadius: 2,
-            pointHoverRadius: 6
+            tension: 0.3,
+            pointRadius: 0,
+            pointHoverRadius: 4
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: "rgba(28, 28, 30, 0.9)",
+              titleFont: { family: "-apple-system, system-ui, sans-serif", size: 11 },
+              bodyFont: { family: "-apple-system, system-ui, sans-serif", size: 12 },
+              cornerRadius: 8,
+              padding: 8
+            }
+          },
           scales: {
-            x: { grid: { display: false }, ticks: { color: colors.tickColor, font: { family: 'Outfit' } } },
-            y: { grid: { color: colors.gridColor }, ticks: { color: colors.tickColor, font: { family: 'Outfit' } } }
+            x: {
+              grid: { display: false },
+              ticks: { color: colors.tickColor, font: { family: "-apple-system, system-ui, sans-serif", size: 10 } }
+            },
+            y: {
+              grid: { color: colors.gridColor },
+              ticks: { color: colors.tickColor, font: { family: "-apple-system, system-ui, sans-serif", size: 10 } }
+            }
           }
         }
       });
 
-      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+      window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
         const newColors = getChartColors();
+        powerChartInstance.data.datasets[0].borderColor = newColors.blue;
         powerChartInstance.options.scales.x.ticks.color = newColors.tickColor;
         powerChartInstance.options.scales.y.ticks.color = newColors.tickColor;
         powerChartInstance.options.scales.y.grid.color = newColors.gridColor;
 
+        energyChartInstance.data.datasets[0].borderColor = newColors.green;
         energyChartInstance.options.scales.x.ticks.color = newColors.tickColor;
         energyChartInstance.options.scales.y.ticks.color = newColors.tickColor;
         energyChartInstance.options.scales.y.grid.color = newColors.gridColor;
@@ -790,24 +911,26 @@ function getDashboardHtml(config: Config): string {
 
     async function fetchStatus() {
       try {
-        const response = await fetch('/api/status');
+        const response = await fetch("/api/status");
         const data = await response.json();
 
-        // Uptime
-        document.getElementById('uptime').textContent = formatUptime(data.uptimeSeconds);
-        document.getElementById('active-sessions-count').textContent = data.activeSessionsCount;
+        const uptimeEl = document.getElementById("uptime");
+        if (uptimeEl) {
+          uptimeEl.innerHTML = "<span class=\"header-uptime-dot\"></span><span>Uptime " + formatUptime(data.uptimeSeconds) + "</span>";
+        }
+
+        document.getElementById("active-sessions-count").textContent = data.activeSessionsCount;
         
         let totalMsgs = 0;
         data.sessions.forEach(s => totalMsgs += s.messageCount);
-        document.getElementById('total-message-count').textContent = totalMsgs;
+        document.getElementById("total-message-count").textContent = totalMsgs;
 
-        // Chargers & Hosts List
-        const hostsContainer = document.getElementById('hosts-container');
-        const chargersContainer = document.getElementById('chargers-container');
+        const hostsContainer = document.getElementById("hosts-container");
+        const chargersContainer = document.getElementById("chargers-container");
 
         if (data.sessions.length === 0) {
-          hostsContainer.innerHTML = '<div class="no-sessions">Waiting for active charger session...</div>';
-          chargersContainer.innerHTML = '<div class="no-sessions">No active charger sessions</div>';
+          hostsContainer.innerHTML = "<div class=\"no-sessions\">Waiting for active charger session...</div>";
+          chargersContainer.innerHTML = "<div class=\"no-sessions\">No active charger sessions</div>";
           
           powerChartInstance.data.labels = [];
           powerChartInstance.data.datasets[0].data = [];
@@ -817,93 +940,72 @@ function getDashboardHtml(config: Config): string {
           energyChartInstance.data.datasets[0].data = [];
           energyChartInstance.update();
         } else {
-          let hostsHtml = '';
-          let chargersHtml = '';
+          let hostsHtml = "";
+          let chargersHtml = "";
 
           data.sessions.forEach(session => {
-            // primary
-            hostsHtml += '<div class="host-row">' +
-              '<div class="host-info">' +
-                '<span class="host-name">Primary CSMS</span>' +
-                '<span class="host-url">' + maskUrlForVisitor(session.primaryUrl) + '</span>' +
-              '</div>' +
-              '<span class="badge ' + session.primaryState.toLowerCase() + '">' + session.primaryState + '</span>' +
-            '</div>';
+            hostsHtml += "<div class=\"host-row\">" +
+              "<div class=\"host-info\">" +
+                "<span class=\"host-name\">Primary CSMS</span>" +
+                "<span class=\"host-url\">" + maskUrlForVisitor(session.primaryUrl) + "</span>" +
+              "</div>" +
+              "<span class=\"badge " + session.primaryState.toLowerCase() + "\">" + session.primaryState + "</span>" +
+            "</div>";
 
-            // secondaries
             session.secondaryUrls.forEach((sec, idx) => {
-              hostsHtml += '<div class="host-row">' +
-                '<div class="host-info">' +
-                  '<span class="host-name">Secondary CSMS [' + (idx + 1) + ']</span>' +
-                  '<span class="host-url">' + maskUrlForVisitor(sec.url) + '</span>' +
-                '</div>' +
-                '<span class="badge ' + sec.state.toLowerCase() + '">' + sec.state + ' (' + sec.queueSize + ' q)</span>' +
-              '</div>';
+              hostsHtml += "<div class=\"host-row\">" +
+                "<div class=\"host-info\">" +
+                  "<span class=\"host-name\">Secondary CSMS [" + (idx + 1) + "]</span>" +
+                  "<span class=\"host-url\">" + maskUrlForVisitor(sec.url) + "</span>" +
+                "</div>" +
+                "<span class=\"badge " + sec.state.toLowerCase() + "\">" + sec.state + " (" + sec.queueSize + " q)</span>" +
+              "</div>";
             });
 
             const connTimeStr = formatDateTime(session.connectedAt);
-            
-            const s = session.uptimeSeconds;
-            const hr = Math.floor(s / 3600);
-            const min = Math.floor((s % 3600) / 60);
-            const sec = s % 60;
-            const durationParts = [];
-            if (hr > 0) durationParts.push(hr + 'h');
-            if (min > 0) durationParts.push(min + 'm');
-            durationParts.push(sec + 's');
-            const sessionDurationStr = durationParts.join(' ');
+            const sessionDurationStr = formatUptime(session.uptimeSeconds);
 
-            let lastMsgHtml = '';
+            let lastMsgHtml = "";
             if (session.lastMessageAt) {
               const lastMsgTimeStr = formatDateTime(session.lastMessageAt);
               const lastMsgDiffSec = Math.floor((Date.now() - session.lastMessageAt) / 1000);
-              const lmHr = Math.floor(lastMsgDiffSec / 3600);
-              const lmMin = Math.floor((lastMsgDiffSec % 3600) / 60);
-              const lmSec = lastMsgDiffSec % 60;
-              const lmDurationParts = [];
-              if (lmHr > 0) lmDurationParts.push(lmHr + 'h');
-              if (lmMin > 0) lmDurationParts.push(lmMin + 'm');
-              lmDurationParts.push(lmSec + 's');
-              const lastMsgDurationStr = lmDurationParts.join(' ');
-              lastMsgHtml = '<span class="charger-sub" style="font-size: 0.8rem; margin-top: 0.15rem; color: var(--text-muted);">Last message: ' + lastMsgTimeStr + ' (' + lastMsgDurationStr + ' ago)</span>';
+              const lastMsgDurationStr = formatUptime(lastMsgDiffSec);
+              lastMsgHtml = "<span class=\"charger-time\">Last frame: " + lastMsgTimeStr + " (" + lastMsgDurationStr + " ago)</span>";
             } else {
-              lastMsgHtml = '<span class="charger-sub" style="font-size: 0.8rem; margin-top: 0.15rem; color: var(--text-muted);">Last message: none</span>';
+              lastMsgHtml = "<span class=\"charger-time\">Last frame: none</span>";
             }
 
-            let typesHtml = '';
+            let typesHtml = "";
             if (session.messageTypes && Object.keys(session.messageTypes).length > 0) {
-              typesHtml += '<div style="margin-top: 1rem; width: 100%;">' +
-                '<div style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">OCPP Message Types (Current Session)</div>' +
-                '<div style="display: flex; flex-wrap: wrap; gap: 0.5rem; width: 100%;">';
+              typesHtml += "<div style=\"margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.375rem; width: 100%;\">";
               for (const [type, count] of Object.entries(session.messageTypes)) {
-                typesHtml += '<span style="font-size: 0.75rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.25rem 0.55rem; border-radius: 6px; color: #cbd5e1; display: inline-flex; align-items: center; gap: 0.25rem;">' +
-                   type + ': <strong style="color: #a78bfa; font-weight: 600;">' + count + '</strong>' +
-                '</span>';
+                typesHtml += "<span class=\"type-pill\">" +
+                   type + ": <strong>" + count + "</strong>" +
+                "</span>";
               }
-              typesHtml += '</div></div>';
+              typesHtml += "</div>";
             }
 
-            chargersHtml += '<div class="charger-row" style="flex-direction: column; align-items: stretch; gap: 0.75rem; padding: 1.5rem;">' +
-              '<div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">' +
-                '<div class="charger-meta">' +
-                  '<span class="charger-tag"><span class="pulse"></span>' + session.chargePointId + '</span>' +
-                  '<span class="charger-sub">IP: ' + session.ipAddress + ' | Protocol: ' + session.protocol + '</span>' +
-                  '<span class="charger-sub" style="font-size: 0.8rem; margin-top: 0.15rem; color: var(--text-muted);">Connected since: ' + connTimeStr + ' (' + sessionDurationStr + ' ago)</span>' +
+            chargersHtml += "<div class=\"charger-card\">" +
+              "<div class=\"charger-header\">" +
+                "<div class=\"charger-meta\">" +
+                  "<span class=\"charger-tag\"><span class=\"status-dot\"></span>" + session.chargePointId + "</span>" +
+                  "<span class=\"charger-sub\">IP: " + session.ipAddress + " &middot; " + session.protocol + "</span>" +
+                  "<span class=\"charger-time\">Connected: " + connTimeStr + " (" + sessionDurationStr + " ago)</span>" +
                   lastMsgHtml +
-                '</div>' +
-                '<div class="charger-meta" style="text-align: right;">' +
-                  '<span class="charger-tag" style="font-weight: 500; font-size: 1rem; color: #a78bfa;">' + session.latestPower.toFixed(2) + ' kW</span>' +
-                  '<span class="charger-sub">' +
-                    'Session: ' + session.latestEnergy.toFixed(2) + ' kWh' +
-                    (session.lifetimeChargedEnergyKwh !== undefined ? ' | Total: ' + session.lifetimeChargedEnergyKwh.toFixed(2) + ' kWh' : '') +
-                    ' | ' + session.messageCount + ' msgs' +
-                  '</span>' +
-                '</div>' +
-              '</div>' +
+                "</div>" +
+                "<div class=\"charger-readout\">" +
+                  "<span class=\"charger-power\">" + session.latestPower.toFixed(2) + " kW</span>" +
+                  "<span class=\"charger-energy\">" +
+                    "Session: " + session.latestEnergy.toFixed(2) + " kWh" +
+                    (session.lifetimeChargedEnergyKwh !== undefined ? " &middot; Total: " + session.lifetimeChargedEnergyKwh.toFixed(2) + " kWh" : "") +
+                    " &middot; " + session.messageCount + " frames" +
+                  "</span>" +
+                "</div>" +
+              "</div>" +
               typesHtml +
-            '</div>';
+            "</div>";
 
-            // Update Chart Data (takes first active session for simplification)
             if (session.powerHistory && session.powerHistory.length > 0) {
               powerChartInstance.data.labels = session.powerHistory.map(p => formatDateTime(p.time));
               powerChartInstance.data.datasets[0].data = session.powerHistory.map(p => p.value);
@@ -920,11 +1022,11 @@ function getDashboardHtml(config: Config): string {
           chargersContainer.innerHTML = chargersHtml;
         }
       } catch (err) {
-        console.error('Error fetching proxy status:', err);
+        console.error("Error fetching proxy status:", err);
       }
     }
 
-    window.addEventListener('load', () => {
+    window.addEventListener("load", () => {
       initCharts();
       fetchStatus();
       setInterval(fetchStatus, 3000);
