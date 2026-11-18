@@ -1,3 +1,6 @@
+import { OCPP_MSG_CALL } from "../types";
+import { decodeOcppFrame } from "./ocpp";
+
 export type FilterResult =
   | {
       blocked: true;
@@ -32,6 +35,7 @@ export function buildStealthRejection(uniqueId: string, action: string): string 
       return JSON.stringify([3, uniqueId, { status: "Unknown" }]);
 
     case "updatefirmware":
+    case "signedupdatefirmware":
       return JSON.stringify([
         4,
         uniqueId,
@@ -64,25 +68,13 @@ export function filterCsmsCall(
     return { blocked: false };
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
+  const msg = decodeOcppFrame(raw);
+  if (msg?.type !== OCPP_MSG_CALL || !msg.action) {
     return { blocked: false };
   }
 
-  if (
-    !Array.isArray(parsed) ||
-    parsed.length < 3 ||
-    parsed[0] !== 2 || // OCPP CALL
-    typeof parsed[1] !== "string" ||
-    typeof parsed[2] !== "string"
-  ) {
-    return { blocked: false };
-  }
-
-  const uniqueId = parsed[1];
-  const action = parsed[2];
+  const uniqueId = msg.id;
+  const action = msg.action;
 
   const isBlocked = blockedActions.some(
     (blocked) => blocked.trim().toLowerCase() === action.trim().toLowerCase()

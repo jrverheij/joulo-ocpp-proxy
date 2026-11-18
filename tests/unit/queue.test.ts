@@ -91,4 +91,16 @@ describe("PersistentQueue", () => {
     const jsonFiles = files.filter((f) => f.endsWith(".json"));
     expect(jsonFiles.length).toBe(1);
   });
+
+  it("should sanitize messageId with directory traversal characters", async () => {
+    const queue = new PersistentQueue(testBaseDir, chargePointId, secondaryUrl);
+    await queue.init();
+
+    await queue.enqueue("../../traversal-id", JSON.stringify([2, "traversal", "MeterValues", {}]));
+
+    const files = await fs.readdir(queue.getQueueDir());
+    const jsonFiles = files.filter((f) => f.endsWith(".json"));
+    expect(jsonFiles.some((f) => f.includes("traversal-id"))).toBe(true);
+    expect(jsonFiles.every((f) => !f.includes("/"))).toBe(true);
+  });
 });

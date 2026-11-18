@@ -77,6 +77,7 @@ export function startProxy(config: Config) {
   const wss = new WebSocketServer({
     server,
     autoPong: false,
+    maxPayload: 1024 * 1024,
     handleProtocols: (protocols) => {
       for (const p of OCPP_SUBPROTOCOLS) {
         if (protocols.has(p)) return p;
@@ -156,7 +157,12 @@ function extractChargePointId(url: string | undefined): string | null {
     .split("/")
     .filter(Boolean);
   if (segments.length === 0) return null;
-  return segments[segments.length - 1];
+  const lastSegment = segments[segments.length - 1];
+  // ChargePointId must be alphanumeric, hyphen, or underscore and max 64 chars
+  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(lastSegment)) {
+    return null;
+  }
+  return lastSegment;
 }
 
 function getDashboardHtml(config: Config): string {
@@ -910,6 +916,16 @@ function getDashboardHtml(config: Config): string {
       });
     }
 
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
     async function fetchStatus() {
       try {
         const response = await fetch("/api/status");
@@ -948,18 +964,18 @@ function getDashboardHtml(config: Config): string {
             hostsHtml += "<div class='host-row'>" +
               "<div class='host-info'>" +
                 "<span class='host-name'>Primary CSMS</span>" +
-                "<span class='host-url'>" + maskUrlForVisitor(session.primaryUrl) + "</span>" +
+                "<span class='host-url'>" + escapeHtml(maskUrlForVisitor(session.primaryUrl)) + "</span>" +
               "</div>" +
-              "<span class='badge " + session.primaryState.toLowerCase() + "'>" + session.primaryState + "</span>" +
+              "<span class='badge " + escapeHtml(session.primaryState.toLowerCase()) + "'>" + escapeHtml(session.primaryState) + "</span>" +
             "</div>";
 
             session.secondaryUrls.forEach((sec, idx) => {
               hostsHtml += "<div class='host-row'>" +
                 "<div class='host-info'>" +
                   "<span class='host-name'>Secondary CSMS [" + (idx + 1) + "]</span>" +
-                  "<span class='host-url'>" + maskUrlForVisitor(sec.url) + "</span>" +
+                  "<span class='host-url'>" + escapeHtml(maskUrlForVisitor(sec.url)) + "</span>" +
                 "</div>" +
-                "<span class='badge " + sec.state.toLowerCase() + "'>" + sec.state + " (" + sec.queueSize + " q)</span>" +
+                "<span class='badge " + escapeHtml(sec.state.toLowerCase()) + "'>" + escapeHtml(sec.state) + " (" + sec.queueSize + " q)</span>" +
               "</div>";
             });
 
@@ -981,7 +997,7 @@ function getDashboardHtml(config: Config): string {
               typesHtml += "<div style='margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.375rem; width: 100%;'>";
               for (const [type, count] of Object.entries(session.messageTypes)) {
                 typesHtml += "<span class='type-pill'>" +
-                   type + ": <strong>" + count + "</strong>" +
+                   escapeHtml(type) + ": <strong>" + count + "</strong>" +
                 "</span>";
               }
               typesHtml += "</div>";
@@ -990,8 +1006,8 @@ function getDashboardHtml(config: Config): string {
             chargersHtml += "<div class='charger-card'>" +
               "<div class='charger-header'>" +
                 "<div class='charger-meta'>" +
-                  "<span class='charger-tag'><span class='status-dot'></span>" + session.chargePointId + "</span>" +
-                  "<span class='charger-sub'>IP: " + session.ipAddress + " &middot; " + session.protocol + "</span>" +
+                  "<span class='charger-tag'><span class='status-dot'></span>" + escapeHtml(session.chargePointId) + "</span>" +
+                  "<span class='charger-sub'>IP: " + escapeHtml(session.ipAddress) + " &middot; " + escapeHtml(session.protocol) + "</span>" +
                   "<span class='charger-time'>Connected: " + connTimeStr + " (" + sessionDurationStr + " ago)</span>" +
                   lastMsgHtml +
                 "</div>" +

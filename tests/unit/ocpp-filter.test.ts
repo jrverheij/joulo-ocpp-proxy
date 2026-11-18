@@ -132,6 +132,30 @@ describe("ocpp-filter", () => {
       expect(filterCsmsCall("", blockedActions)).toEqual({ blocked: false });
     });
 
+    it("blocks when message type is a decimal string and id is numeric", () => {
+      const raw = '["2", 999, "UpdateFirmware", {}]';
+      const result = filterCsmsCall(raw, blockedActions);
+      expect(result).toEqual({
+        blocked: true,
+        action: "UpdateFirmware",
+        uniqueId: "999",
+        response: expect.any(String),
+      });
+    });
+
+    it("blocks SignedUpdateFirmware with CallError", () => {
+      const raw = '[2, "sec-1", "SignedUpdateFirmware", {}]';
+      const result = filterCsmsCall(raw, ["SignedUpdateFirmware"]);
+      expect(result).toMatchObject({
+        blocked: true,
+        action: "SignedUpdateFirmware",
+        uniqueId: "sec-1",
+      });
+      const response = JSON.parse((result as { response: string }).response);
+      expect(response[0]).toBe(4);
+      expect(response[2]).toBe("NotSupported");
+    });
+
     it("allows all commands when blocked list is empty", () => {
       const raw = JSON.stringify([2, "req-5", "ChangeConfiguration", {}]);
       expect(filterCsmsCall(raw, [])).toEqual({ blocked: false });
