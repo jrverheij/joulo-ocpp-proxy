@@ -157,4 +157,66 @@ describe("ChargerConnection State & Accumulator", () => {
     // Allow any background writes to finish
     await new Promise((resolve) => setTimeout(resolve, 50));
   });
+
+  it("should track charger status and active transaction state across events", async () => {
+    const chargePointId = "CP_STATUS_NOTIF_TEST";
+    const mockCharger = new MockWebSocket() as any;
+    const conn = new ChargerConnection(
+      mockCharger,
+      chargePointId,
+      { url: "ws://localhost:8001", appendChargePointId: true },
+      [],
+      testBaseDir,
+      "ocpp1.6",
+      undefined,
+      "127.0.0.1"
+    );
+
+    let metrics = conn.getMetrics();
+    expect(metrics.chargerStatus).toBe("Available");
+    expect(metrics.transactionActive).toBe(false);
+
+    // 1. Preparing status notification when cable is plugged in
+    const prepMsg = JSON.stringify([2, "msg-prep-1", "StatusNotification", {
+      connectorId: 1,
+      status: "Preparing",
+      errorCode: "NoError"
+    }]);
+    mockCharger.emit("message", Buffer.from(prepMsg));
+
+    metrics = conn.getMetrics();
+    expect(metrics.chargerStatus).toBe("Preparing");
+    expect(metrics.transactionActive).toBe(false);
+
+    // 2. StartTransaction
+    const startMsg = JSON.stringify([2, "msg-start-1", "StartTransaction", { meterStart: 100000 }]);
+    mockCharger.emit("message", Buffer.from(startMsg));
+
+    metrics = conn.getMetrics();
+    expect(metrics.transactionActive).toBe(true);
+    expect(metrics.transactionStartedAt).toBeTypeOf("number");
+
+    // 3. SuspendedEVSE status notification (e.g. EVCC deferred charging)
+    const suspMsg = JSON.stringify([2, "msg-susp-1", "StatusNotification", {
+      connectorId: 1,
+      status: "SuspendedEVSE",
+      errorCode: "NoError"
+    }]);
+    mockCharger.emit("message", Buffer.from(suspMsg));
+
+    metrics = conn.getMetrics();
+    expect(metrics.chargerStatus).toBe("SuspendedEVSE");
+    expect(metrics.transactionActive).toBe(true);
+
+    // 4. StopTransaction
+    const stopMsg = JSON.stringify([2, "msg-stop-1", "StopTransaction", {}]);
+    mockCharger.emit("message", Buffer.from(stopMsg));
+
+    metrics = conn.getMetrics();
+    expect(metrics.transactionActive).toBe(false);
+    expect(metrics.transactionStartedAt).toBeNull();
+
+    conn.teardown();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  });
 });
