@@ -317,6 +317,9 @@ export class ChargerConnection {
   // Session tracking & Fallback calculation
   private initialEnergy: number | null = null;
   private currentTransactionId: number | null = null;
+  private transactionActive = false;
+  private transactionStartedAt: number | null = null;
+  private chargerStatus = "Available";
   private lastEnergyTime: number | null = null;
   private lastEnergyValue: number | null = null;
 
@@ -372,6 +375,9 @@ export class ChargerConnection {
       this.energyHistory = state.energyHistory ?? [];
       this.initialEnergy = state.initialEnergy ?? null;
       this.currentTransactionId = state.currentTransactionId ?? null;
+      this.transactionActive = state.transactionActive ?? (this.initialEnergy !== null);
+      this.transactionStartedAt = state.transactionStartedAt ?? null;
+      this.chargerStatus = state.chargerStatus ?? "Available";
       this.lastEnergyTime = state.lastEnergyTime ?? null;
       this.lastEnergyValue = state.lastEnergyValue ?? null;
       this.lifetimeChargedEnergyKwh = state.lifetimeChargedEnergyKwh ?? 0;
@@ -399,6 +405,9 @@ export class ChargerConnection {
       messageTypes: this.messageTypes,
       initialEnergy: this.initialEnergy,
       currentTransactionId: this.currentTransactionId,
+      transactionActive: this.transactionActive,
+      transactionStartedAt: this.transactionStartedAt,
+      chargerStatus: this.chargerStatus,
       lastEnergyTime: this.lastEnergyTime,
       lastEnergyValue: this.lastEnergyValue,
       lifetimeChargedEnergyKwh: this.lifetimeChargedEnergyKwh,
@@ -455,6 +464,8 @@ export class ChargerConnection {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed[0] === 2) {
           if (parsed[2] === "StartTransaction") {
+            this.transactionActive = true;
+            this.transactionStartedAt = this.transactionStartedAt ?? Date.now();
             const payload = parsed[3] as Record<string, any>;
             if (payload && typeof payload.meterStart === "number") {
               // Commit previous session's energy before resetting if we had an ongoing transaction
@@ -481,6 +492,8 @@ export class ChargerConnection {
               this.saveSessionState(true);
             }
           } else if (parsed[2] === "StopTransaction") {
+            this.transactionActive = false;
+            this.transactionStartedAt = null;
             if (this.initialEnergy !== null && this.latestEnergy !== undefined) {
               this.lifetimeChargedEnergyKwh = roundToThreeDecimals(this.lifetimeChargedEnergyKwh + this.latestEnergy);
               this.log.info("intercepted StopTransaction: committing transaction energy to lifetime total", {
@@ -497,6 +510,13 @@ export class ChargerConnection {
             this.latestPower = 0;
             this.powerHistory = [];
             this.saveSessionState(true);
+          } else if (parsed[2] === "StatusNotification") {
+            const payload = parsed[3] as Record<string, any>;
+            if (payload && typeof payload.status === "string") {
+              this.chargerStatus = payload.status;
+              this.log.info("intercepted StatusNotification", { status: this.chargerStatus });
+              this.saveSessionState(false).catch(() => {});
+            }
           }
         }
       } catch {
@@ -513,6 +533,8 @@ export class ChargerConnection {
 
         // Reset session energy on transaction change
         if (metrics.transactionId !== undefined) {
+          this.transactionActive = true;
+          if (!this.transactionStartedAt) this.transactionStartedAt = Date.now();
           if (this.currentTransactionId !== metrics.transactionId) {
             if (this.currentTransactionId !== null) {
               this.log.info("transaction changed, resetting session energy", {
@@ -899,6 +921,9 @@ export class ChargerConnection {
       })),
       latestPower: this.latestPower,
       latestEnergy: this.latestEnergy,
+      transactionActive: this.transactionActive || (this.initialEnergy !== null),
+      transactionStartedAt: this.transactionStartedAt,
+      chargerStatus: this.chargerStatus,
       lifetimeChargedEnergyKwh: totalLifetime,
       powerHistory: this.powerHistory,
       energyHistory: this.energyHistory,

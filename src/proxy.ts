@@ -574,6 +574,73 @@ function getDashboardHtml(config: Config): string {
       display: inline-block;
     }
 
+    .session-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 9999px;
+      font-size: 0.6875rem;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+    }
+
+    .session-badge.charging {
+      background: var(--system-green-subtle);
+      color: var(--system-green);
+      border: 1px solid rgba(48, 209, 88, 0.3);
+    }
+
+    .session-badge.scheduled {
+      background: rgba(255, 159, 10, 0.15);
+      color: var(--system-orange);
+      border: 1px solid rgba(255, 159, 10, 0.3);
+    }
+
+    .session-badge.preparing {
+      background: var(--system-blue-subtle);
+      color: var(--system-blue);
+      border: 1px solid rgba(10, 132, 255, 0.3);
+    }
+
+    .session-badge.idle {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-secondary);
+      border: 1px solid var(--hairline);
+    }
+
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .pulse-dot.green {
+      background: var(--system-green);
+      box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.7);
+      animation: pulse-green 2s infinite;
+    }
+
+    .pulse-dot.amber {
+      background: var(--system-orange);
+      box-shadow: 0 0 0 0 rgba(255, 159, 10, 0.7);
+      animation: pulse-amber 2s infinite;
+    }
+
+    @keyframes pulse-green {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(48, 209, 88, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); }
+    }
+
+    @keyframes pulse-amber {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 159, 10, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(255, 159, 10, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 159, 10, 0); }
+    }
+
     .charger-sub {
       font-size: 0.75rem;
       color: var(--text-secondary);
@@ -1003,18 +1070,48 @@ function getDashboardHtml(config: Config): string {
               typesHtml += "</div>";
             }
 
+            const isTx = session.transactionActive;
+            const status = (session.chargerStatus || "").toLowerCase();
+            const power = session.latestPower || 0;
+
+            let sessionBadgeHtml = "";
+            let powerColor = "var(--text-secondary)";
+            let powerExtra = "";
+
+            if (power > 0.05 || status === "charging") {
+              sessionBadgeHtml = "<span class='session-badge charging'><span class='pulse-dot green'></span>Actief laden</span>";
+              powerColor = "var(--system-green)";
+            } else if (isTx || status.includes("suspended") || status === "preparing") {
+              powerColor = "var(--system-orange)";
+              powerExtra = " <span style='font-size: 0.75rem; font-weight: 500; opacity: 0.85;'>[Uitgesteld]</span>";
+              if (status === "suspendedevse") {
+                sessionBadgeHtml = "<span class='session-badge scheduled'><span class='pulse-dot amber'></span>Uitgesteld laden (wacht op EVCC)</span>";
+              } else if (status === "suspendedev") {
+                sessionBadgeHtml = "<span class='session-badge scheduled'><span class='pulse-dot amber'></span>Uitgesteld laden (wacht op auto)</span>";
+              } else if (status === "preparing") {
+                sessionBadgeHtml = "<span class='session-badge preparing'><span class='pulse-dot amber'></span>Ingeplugd · Klaar voor start</span>";
+              } else {
+                sessionBadgeHtml = "<span class='session-badge scheduled'><span class='pulse-dot amber'></span>Sessie actief · Uitgesteld laden</span>";
+              }
+            } else {
+              sessionBadgeHtml = "<span class='session-badge idle'><span class='pulse-dot' style='background: var(--text-tertiary);'></span>Standby · Niet aangesloten</span>";
+            }
+
             chargersHtml += "<div class='charger-card'>" +
               "<div class='charger-header'>" +
                 "<div class='charger-meta'>" +
-                  "<span class='charger-tag'><span class='status-dot'></span>" + escapeHtml(session.chargePointId) + "</span>" +
+                  "<div style='display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;'>" +
+                    "<span class='charger-tag'><span class='status-dot'></span>" + escapeHtml(session.chargePointId) + "</span>" +
+                    sessionBadgeHtml +
+                  "</div>" +
                   "<span class='charger-sub'>IP: " + escapeHtml(session.ipAddress) + " &middot; " + escapeHtml(session.protocol) + "</span>" +
                   "<span class='charger-time'>Connected: " + connTimeStr + " (" + sessionDurationStr + " ago)</span>" +
                   lastMsgHtml +
                 "</div>" +
                 "<div class='charger-readout'>" +
-                  "<span class='charger-power'>" + session.latestPower.toFixed(2) + " kW</span>" +
+                  "<span class='charger-power' style='color: " + powerColor + ";'>" + session.latestPower.toFixed(2) + " kW" + powerExtra + "</span>" +
                   "<span class='charger-energy'>" +
-                    "Session: " + session.latestEnergy.toFixed(2) + " kWh" +
+                    (isTx ? "<strong>Sessie: " + session.latestEnergy.toFixed(2) + " kWh</strong>" : "Session: " + session.latestEnergy.toFixed(2) + " kWh") +
                     (session.lifetimeChargedEnergyKwh !== undefined ? " &middot; Total: " + session.lifetimeChargedEnergyKwh.toFixed(2) + " kWh" : "") +
                     " &middot; " + session.messageCount + " frames" +
                   "</span>" +
