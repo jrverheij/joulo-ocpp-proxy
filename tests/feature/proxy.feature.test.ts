@@ -384,6 +384,31 @@ describe("proxy feature", () => {
     expect(primary.connections).toHaveLength(0);
   });
 
+  it("rejects charger connections with invalid path traversal in charge point ID", async () => {
+    const primaryPort = await startWsServer(primary);
+    const proxyPort = await allocatePort();
+
+    startProxy({
+      port: proxyPort,
+      primaryCsms: {
+        url: `ws://127.0.0.1:${String(primaryPort)}`,
+        appendChargePointId: true,
+      },
+      secondaryCsms: [],
+      loggerConfig: {
+        logLevel: "error",
+      },
+      queueDir: "./queue",
+    });
+
+    const charger = await connectWhenOpen(`ws://127.0.0.1:${String(proxyPort)}/..`, "ocpp1.6");
+    openChargers.push(charger);
+    const closeEvent = await waitForClose(charger);
+
+    expect(closeEvent.code).toBe(1002);
+    expect(primary.connections).toHaveLength(0);
+  });
+
   it("drops charger connection when primary is unavailable", async () => {
     const proxyPort = await allocatePort();
 

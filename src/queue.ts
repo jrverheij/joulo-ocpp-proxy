@@ -55,9 +55,14 @@ export class PersistentQueue {
    * Enqueues an OCPP message to the persistent storage.
    */
   async enqueue(messageId: string, rawMessage: string): Promise<void> {
+    // Sanitize messageId to prevent directory traversal
+    const safeId = messageId.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64) || "msg";
     // Prefix with timestamp to ensure alphabetical/chronological sorting
-    const filename = `${Date.now()}-${messageId}.json`;
+    const filename = `${Date.now()}-${safeId}.json`;
     const filePath = path.join(this.queueDir, filename);
+    if (!filePath.startsWith(this.queueDir)) {
+      throw new Error("Invalid path traversal in queue message ID");
+    }
     try {
       await fs.writeFile(filePath, rawMessage, "utf8");
       this.pendingCount++;
