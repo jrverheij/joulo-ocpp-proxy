@@ -2,7 +2,9 @@ import {
   OCPP_MSG_CALL,
   OCPP_MSG_CALLERROR,
   OCPP_MSG_CALLRESULT,
+  type ParsedMessage,
 } from "./types";
+import { parseOcppFrameArray } from "./utils/ocpp";
 
 export const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
 
@@ -89,35 +91,44 @@ function truncateMessage(raw: string): string {
   return raw.slice(0, debugMessageMaxLength);
 }
 
-function summarizeOcppFrame(raw: string): string {
-  try {
-    const msg = JSON.parse(raw) as unknown[];
-    if (!Array.isArray(msg) || msg.length < 3) return truncateMessage(raw);
+function formatOcppFrame(type: unknown, id: string, raw: string): string {
+  const payload = truncateMessage(raw);
 
-    const type = msg[0] as number;
-    const id = String(msg[1]);
-    const payload = truncateMessage(raw);
-
-    if (type === OCPP_MSG_CALL) {
-      return `[OCPP CALL] (${id}): ${payload}`;
-    }
-
-    if (type === OCPP_MSG_CALLRESULT) {
-      return `[OCPP RESULT] (${id}): ${payload}`;
-    }
-
-    if (type === OCPP_MSG_CALLERROR) {
-      return `[OCPP ERROR] (${id}): ${payload}`;
-    }
-
-    return `[OCPP UNKNOWN] (${type}): ${payload}`;
-  } catch {
-    return truncateMessage(raw);
+  if (type === OCPP_MSG_CALL) {
+    return `[OCPP CALL] (${id}): ${payload}`;
   }
+
+  if (type === OCPP_MSG_CALLRESULT) {
+    return `[OCPP RESULT] (${id}): ${payload}`;
+  }
+
+  if (type === OCPP_MSG_CALLERROR) {
+    return `[OCPP ERROR] (${id}): ${payload}`;
+  }
+
+  return `[OCPP UNKNOWN] (${String(type)}): ${payload}`;
+}
+
+/**
+ * Summarize a frame for debug output. Callers that already decoded the frame
+ * pass the parsed message so it isn't parsed a second time here.
+ *
+ * The elements are formatted without validating them, so an unrecognized
+ * message type is still labelled rather than dumped as raw text.
+ */
+function summarizeOcppFrame(frame: string | ParsedMessage): string {
+  if (typeof frame !== "string") {
+    return formatOcppFrame(frame.type, frame.id, frame.raw);
+  }
+
+  const elements = parseOcppFrameArray(frame);
+  if (elements === null) return truncateMessage(frame);
+
+  return formatOcppFrame(elements[0], String(elements[1]), frame);
 }
 
 function buildOcppFrameDebugExtra(
-  payload: string,
+  payload: string | ParsedMessage,
   extra?: object
 ): object | undefined {
   if (!extra) return { message: summarizeOcppFrame(payload) };
@@ -149,8 +160,11 @@ function log(level: LogLevel, tag: string, message: string, extra?: object) {
 export function createLogger(tag: string) {
   return {
     debug: (msg: string, extra?: object) => log("debug", tag, msg, extra),
-    debugOcppFrame: (msg: string, payload: string, extra?: object) =>
-      log("debug", tag, msg, buildOcppFrameDebugExtra(payload, extra)),
+    debugOcppFrame: (
+      msg: string,
+      payload: string | ParsedMessage,
+      extra?: object
+    ) => log("debug", tag, msg, buildOcppFrameDebugExtra(payload, extra)),
     info: (msg: string, extra?: object) => log("info", tag, msg, extra),
     warn: (msg: string, extra?: object) => log("warn", tag, msg, extra),
     error: (msg: string, extra?: object) => log("error", tag, msg, extra),
