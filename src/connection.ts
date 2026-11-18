@@ -2,7 +2,13 @@ import WebSocket from "ws";
 import fs from "fs";
 import path from "path";
 import { createLogger } from "./logger";
-import { OCPP_MSG_CALL, OCPP_SUBPROTOCOLS } from "./types";
+import {
+  OCPP_MSG_CALL,
+  OCPP_MSG_CALLERROR,
+  OCPP_MSG_CALLRESULT,
+  OCPP_SUBPROTOCOLS,
+} from "./types";
+import { decodeOcppFrame } from "./utils/ocpp";
 import { PersistentQueue } from "./queue";
 import { forwardPing, forwardPong, rawDataToString } from "./utils/websocket";
 import { resolveCsmsUrl } from "./utils/url";
@@ -440,8 +446,9 @@ export class ChargerConnection {
       this.lastMessageAt = Date.now();
       this.messageCount++;
       const raw = rawDataToString(data);
+      const msg = decodeOcppFrame(raw);
       this.trackMessage(raw);
-      this.log.debugOcppFrame("charger → proxy", raw);
+      this.log.debugOcppFrame("charger → proxy", msg ?? raw);
 
       // Intercept StartTransaction and StopTransaction
       try {
@@ -594,6 +601,16 @@ export class ChargerConnection {
         this.primary.send(raw);
       } else {
         this.primaryQueue.push(raw);
+      }
+
+      // Withhold charger responses (CALLRESULT / CALLERROR) from secondaries:
+      // secondaries never sent the original request, so responses are meaningless to them.
+      if (
+        msg?.type === OCPP_MSG_CALLRESULT ||
+        msg?.type === OCPP_MSG_CALLERROR
+      ) {
+        this.saveSessionState(false).catch(() => {});
+        return;
       }
 
       for (const sec of this.secondaries) {
