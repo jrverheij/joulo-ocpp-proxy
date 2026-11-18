@@ -1079,22 +1079,22 @@ function getDashboardHtml(config: Config): string {
             let powerExtra = "";
 
             if (power > 0.05 || status === "charging") {
-              sessionBadgeHtml = "<span class='session-badge charging'><span class='pulse-dot green'></span>Actief laden</span>";
+              sessionBadgeHtml = "<span class='session-badge charging'><span class='pulse-dot green'></span>Charging</span>";
               powerColor = "var(--system-green)";
             } else if (isTx || status.includes("suspended") || status === "preparing") {
               powerColor = "var(--system-orange)";
-              powerExtra = " <span style='font-size: 0.75rem; font-weight: 500; opacity: 0.85;'>[Uitgesteld]</span>";
+              powerExtra = " <span style='font-size: 0.75rem; font-weight: 500; opacity: 0.85;'>[Suspended]</span>";
               if (status === "suspendedevse") {
-                sessionBadgeHtml = "<span class='session-badge scheduled'><span class='pulse-dot amber'></span>Uitgesteld laden (wacht op EVCC)</span>";
+                sessionBadgeHtml = "<span class='session-badge scheduled'><span class='pulse-dot amber'></span>Scheduled (Waiting for EVCC)</span>";
               } else if (status === "suspendedev") {
-                sessionBadgeHtml = "<span class='session-badge scheduled'><span class='pulse-dot amber'></span>Uitgesteld laden (wacht op auto)</span>";
+                sessionBadgeHtml = "<span class='session-badge scheduled'><span class='pulse-dot amber'></span>Scheduled (Waiting for vehicle)</span>";
               } else if (status === "preparing") {
-                sessionBadgeHtml = "<span class='session-badge preparing'><span class='pulse-dot amber'></span>Ingeplugd · Klaar voor start</span>";
+                sessionBadgeHtml = "<span class='session-badge preparing'><span class='pulse-dot amber'></span>Plugged in · Preparing</span>";
               } else {
-                sessionBadgeHtml = "<span class='session-badge scheduled'><span class='pulse-dot amber'></span>Sessie actief · Uitgesteld laden</span>";
+                sessionBadgeHtml = "<span class='session-badge scheduled'><span class='pulse-dot amber'></span>Session active · Suspended</span>";
               }
             } else {
-              sessionBadgeHtml = "<span class='session-badge idle'><span class='pulse-dot' style='background: var(--text-tertiary);'></span>Standby · Niet aangesloten</span>";
+              sessionBadgeHtml = "<span class='session-badge idle'><span class='pulse-dot' style='background: var(--text-tertiary);'></span>Standby · Disconnected</span>";
             }
 
             chargersHtml += "<div class='charger-card'>" +
@@ -1111,7 +1111,7 @@ function getDashboardHtml(config: Config): string {
                 "<div class='charger-readout'>" +
                   "<span class='charger-power' style='color: " + powerColor + ";'>" + session.latestPower.toFixed(2) + " kW" + powerExtra + "</span>" +
                   "<span class='charger-energy'>" +
-                    (isTx ? "<strong>Sessie: " + session.latestEnergy.toFixed(2) + " kWh</strong>" : "Session: " + session.latestEnergy.toFixed(2) + " kWh") +
+                    (isTx ? "<strong>Session: " + session.latestEnergy.toFixed(2) + " kWh</strong>" : "Session: " + session.latestEnergy.toFixed(2) + " kWh") +
                     (session.lifetimeChargedEnergyKwh !== undefined ? " &middot; Total: " + session.lifetimeChargedEnergyKwh.toFixed(2) + " kWh" : "") +
                     " &middot; " + session.messageCount + " frames" +
                   "</span>" +
