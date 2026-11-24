@@ -8,10 +8,10 @@ This fork builds upon the original `joulo-nl/joulo-ocpp-proxy` and introduces en
 *   **Downstream OCPP Command Filtering (Stealth Rejection):** Protect EV chargers against unwanted downstream modifications from the primary CSMS (such as CPO overrides on charge current or unapproved over-the-air firmware pushes). The proxy stealthily intercepts blocked calls and responds directly with valid OCPP rejection frames (e.g. `[3, id, { "status": "Rejected" }]` for `ChangeConfiguration`), keeping the physical charger safe while satisfying the backend. Fully configurable via `BLOCKED_CSMS_ACTIONS`.
 *   **Version & SHA Hash Display:** Shows the deployed Git commit SHA directly on the dashboard header and via `/api/status` to easily track running software versions.
 *   **Strict GDPR Data Privacy & Masking:** Dynamic masking of charge point IDs (e.g. `CP*****01`), query parameters and auth tokens (e.g. `auth=se*****99`), and full IP address anonymization (`198.51.x.x`) across all container logs and API endpoints.
-*   **Visitor Hostname Masking:** An additional client-side protection layer on `/status` that obscures domain hostnames and strips out security query tokens (`wss://oc***p.jo***o.***/CP*****01?auth=***`) to prevent unauthorized dashboard visitors from obtaining network metadata, while preserving complete server logs for debugging.
+*   **Visitor Hostname Masking:** An additional client-side protection layer on `/status` that obscures domain hostnames and strips out security query tokens (`wss://oc***p.ex***e.***/CP*****01?auth=***`) to prevent unauthorized dashboard visitors from obtaining network metadata, while preserving complete server logs for debugging.
 *   **Disk-Persistent Bounded Queue:** When a secondary CSMS is offline, critical messages (`StartTransaction`, `StopTransaction`, `MeterValues`) are serialized to a disk-based persistent queue to ensure zero telemetry loss. Non-critical messages (like `Heartbeat`) are held in a bounded in-memory buffer.
 *   **Resilient Session State & Lifetime Energy Tracker:** Throttles writes to disk to save active charging metrics, rolling chart histories, and cumulative transaction energy (kWh) to survive proxy container restarts.
-*   **Stale Session Cleanup (PR #3):** Automatically destroys any existing stale sessions when a charger reconnects, cleanly terminating the zombie WebSocket connection to the primary CSMS, preventing charger reconnect loops.
+*   **Stale Session Cleanup (PR #3):** Automatically destroys any existing stale sessions when a charger reconnects, cleanly terminating the zombie WebSocket connection to the upstream CSMS, preventing charger reconnect loops.
 *   **Auto-Pong & Startup Buffer:** Buffers early op-code packets during handshakes to prevent packet drops and disables auto-pongs for transparent protocol state management.
 *   **Automated Dependency Updates & Registry Cleanup:** Weekly security scanning via Dependabot, alongside automated GitHub Actions cleanup to prune old intermediate `sha-*` package versions from GHCR.
 
@@ -57,7 +57,7 @@ Accessible directly at `/status` (e.g., `https://ocpp.example.com/status`), buil
 ### 2. GDPR-Compliant Data Security
 *   **Logs:** System logs are stripped of raw credentials and IDs (logs use masked values like `CP*****01` and `auth=se*****99`).
 *   **IP Anonymization:** Client IP addresses are dynamically anonymized (last two segments replaced by `x.x` for IPv4) in both container output logs and the public `/api/status` API.
-*   **Domain & Path Masking:** Public visitors accessing the dashboard `/status` will see fully obscured upstream URL targets (`wss://***.ev***t.***/CP*****01`) to shield the network configuration.
+*   **Domain & Path Masking:** Public visitors accessing the dashboard `/status` will see fully obscured upstream URL targets (`wss://***.ex***e.***/CP*****01`) to shield the network configuration.
 
 ### 3. Resiliency & Mirroring
 *   **Auto-reconnect:** Proxy automatically attempts reconnecting to secondary CSMS backends every 10s.

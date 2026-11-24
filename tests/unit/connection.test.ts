@@ -196,7 +196,7 @@ describe("ChargerConnection State & Accumulator", () => {
     expect(metrics.transactionActive).toBe(true);
     expect(metrics.transactionStartedAt).toBeTypeOf("number");
 
-    // 3. SuspendedEVSE status notification (e.g. EVCC deferred charging)
+    // 3. SuspendedEVSE status notification (e.g. EVSE deferred charging)
     const suspMsg = JSON.stringify([2, "msg-susp-1", "StatusNotification", {
       connectorId: 1,
       status: "SuspendedEVSE",

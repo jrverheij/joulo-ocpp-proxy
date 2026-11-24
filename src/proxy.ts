@@ -1085,7 +1085,7 @@ function getDashboardHtml(config: Config): string {
               powerColor = "var(--system-orange)";
               powerExtra = " <span style='font-size: 0.75rem; font-weight: 500; opacity: 0.85;'>[Suspended]</span>";
               if (status === "suspendedevse") {
-                sessionBadgeHtml = "<span class='session-badge scheduled'><span class='pulse-dot amber'></span>Scheduled (Waiting for EVCC)</span>";
+                sessionBadgeHtml = "<span class='session-badge scheduled'><span class='pulse-dot amber'></span>Scheduled (Waiting for EVSE)</span>";
               } else if (status === "suspendedev") {
                 sessionBadgeHtml = "<span class='session-badge scheduled'><span class='pulse-dot amber'></span>Scheduled (Waiting for vehicle)</span>";
               } else if (status === "preparing") {

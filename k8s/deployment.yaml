@@ -30,33 +30,31 @@ spec:
       labels:
         app: ocpp-proxy
     spec:
+      automountServiceAccountToken: false
       securityContext:
         fsGroup: 1000
         runAsUser: 1000
         runAsGroup: 1000
-      affinity:
-        nodeAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - preference:
-                matchExpressions:
-                  - key: kubernetes.io/hostname
-                    operator: In
-                    values:
-                      - node-1
-              weight: 100
       containers:
         - name: ocpp-proxy
           image: ghcr.io/jrverheij/joulo-ocpp-proxy:main
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: LOG_LEVEL
-              value: debug
+              value: info
             - name: PRIMARY_CSMS_URL
               value: wss://your-primary-csms.example.com/ocpp
             - name: SECONDARY_CSMS_URLS
-              value: wss://ocpp.joulo.nl?auth=YOUR_AUTH_TOKEN,ws://secondary-a.example.com/ocpp,ws://secondary-b.example.com/ocpp
+              value: wss://secondary-a.example.com/ocpp,wss://secondary-b.example.com/ocpp
             - name: QUEUE_DIR
               value: /app/queue
+            - name: BLOCKED_CSMS_ACTIONS
+              value: ChangeConfiguration,UpdateFirmware
           ports:
             - containerPort: 9000
           volumeMounts:
